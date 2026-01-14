@@ -1,0 +1,722 @@
+{
+  "mod_info": {
+    "mod_id": "create",
+    "mod_name": "Create",
+    "version": "1.0.0",
+    "description": "机械动力模组配方类型定义 / Create mod recipe type definitions"
+  },
+  "recipe_types": [
+    {
+      "recipe_type_id": "create:crushing",
+      "display_name": "粉碎 / Crushing",
+      "description": "使用粉碎轮粉碎物品 / Crushing items with crushing wheels",
+      "icon": "create:crushing_wheel",
+      "template": {
+        "type": "create:crushing",
+        "ingredients": [],
+        "results": [],
+        "processingTime": 100
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:crushing"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 1,
+          "description": "要粉碎的物品 / Item to crush"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 7,
+          "description": "粉碎结果（可以包含概率） / Crushing results (can include probability)",
+          "item_format": {
+            "item": "string",
+            "count": "integer (optional, default: 1)",
+            "chance": "float (optional, 0.0-1.0)"
+          }
+        },
+        "processingTime": {
+          "required": false,
+          "type": "integer",
+          "default": 100,
+          "range": [
+            1,
+            1000
+          ],
+          "unit": "ticks",
+          "description": "处理时间（游戏刻） / Processing time (game ticks)"
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "ore",
+          "raw_material",
+          "stone",
+          "mineral",
+          "gravel",
+          "recyclable",
+          "block"
+        ],
+        "keywords": [
+          "ore",
+          "stone",
+          "gravel",
+          "crush",
+          "grind",
+          "break",
+          "矿石",
+          "石头",
+          "砂砾",
+          "粉碎",
+          "研磨",
+          "破碎"
+        ],
+        "input_count": {
+          "min": 1,
+          "max": 1
+        },
+        "output_count": {
+          "min": 1,
+          "max": 7
+        },
+        "typical_patterns": [
+          "矿石加工获得粉末",
+          "石头类物品粉碎",
+          "回收物品获得原料",
+          "一个输入多个输出（主产物+副产物）"
+        ]
+      },
+      "examples": [
+        {
+          "name": "粉碎铁矿石 / Crush Iron Ore",
+          "recipe": {
+            "type": "create:crushing",
+            "ingredients": [
+              {
+                "item": "minecraft:iron_ore"
+              }
+            ],
+            "results": [
+              {
+                "item": "create:crushed_iron",
+                "count": 1
+              },
+              {
+                "item": "create:crushed_iron",
+                "count": 2,
+                "chance": 0.75
+              },
+              {
+                "item": "minecraft:cobblestone",
+                "count": 1,
+                "chance": 0.12
+              }
+            ],
+            "processingTime": 150
+          }
+        },
+        {
+          "name": "粉碎砂砾 / Crush Gravel",
+          "recipe": {
+            "type": "create:crushing",
+            "ingredients": [
+              {
+                "item": "minecraft:gravel"
+              }
+            ],
+            "results": [
+              {
+                "item": "minecraft:sand",
+                "count": 1
+              },
+              {
+                "item": "minecraft:flint",
+                "count": 1,
+                "chance": 0.25
+              }
+            ],
+            "processingTime": 100
+          }
+        }
+      ]
+    },
+    {
+      "recipe_type_id": "create:milling",
+      "display_name": "研磨 / Milling",
+      "description": "使用磨粉机研磨物品 / Milling items with millstone",
+      "icon": "create:millstone",
+      "template": {
+        "type": "create:milling",
+        "ingredients": [],
+        "results": [],
+        "processingTime": 100
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:milling"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 1,
+          "description": "要研磨的物品 / Item to mill"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "description": "研磨结果 / Milling results"
+        },
+        "processingTime": {
+          "required": false,
+          "type": "integer",
+          "default": 100
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "grain",
+          "seed",
+          "plant",
+          "mineral",
+          "powder",
+          "crop"
+        ],
+        "keywords": [
+          "grain",
+          "wheat",
+          "seed",
+          "flour",
+          "powder",
+          "mill",
+          "谷物",
+          "小麦",
+          "种子",
+          "面粉",
+          "粉末",
+          "研磨"
+        ],
+        "input_count": {
+          "min": 1,
+          "max": 1
+        },
+        "output_count": {
+          "min": 1,
+          "max": 4
+        },
+        "typical_patterns": [
+          "谷物研磨成粉末",
+          "种子加工",
+          "获得粉末类产物",
+          "农作物精细加工"
+        ]
+      },
+      "examples": [
+        {
+          "name": "研磨小麦 / Mill Wheat",
+          "recipe": {
+            "type": "create:milling",
+            "ingredients": [
+              {
+                "item": "minecraft:wheat"
+              }
+            ],
+            "results": [
+              {
+                "item": "create:wheat_flour",
+                "count": 1
+              }
+            ],
+            "processingTime": 50
+          }
+        },
+        {
+          "name": "研磨骨头 / Mill Bone",
+          "recipe": {
+            "type": "create:milling",
+            "ingredients": [
+              {
+                "item": "minecraft:bone"
+              }
+            ],
+            "results": [
+              {
+                "item": "minecraft:bone_meal",
+                "count": 3
+              },
+              {
+                "item": "minecraft:bone_meal",
+                "count": 3,
+                "chance": 0.5
+              }
+            ],
+            "processingTime": 100
+          }
+        }
+      ]
+    },
+    {
+      "recipe_type_id": "create:mixing",
+      "display_name": "搅拌 / Mixing",
+      "description": "使用搅拌器混合物品 / Mixing items with mechanical mixer",
+      "icon": "create:mechanical_mixer",
+      "template": {
+        "type": "create:mixing",
+        "ingredients": [],
+        "results": [],
+        "heatRequirement": "none"
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:mixing"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 9,
+          "description": "混合材料 / Mixing ingredients"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "description": "混合结果 / Mixing results"
+        },
+        "heatRequirement": {
+          "required": false,
+          "type": "string",
+          "enum": [
+            "none",
+            "heated",
+            "superheated"
+          ],
+          "default": "none",
+          "description": "热量需求 / Heat requirement"
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "alloy",
+          "compound",
+          "mixture",
+          "dough",
+          "liquid",
+          "material"
+        ],
+        "keywords": [
+          "mix",
+          "blend",
+          "combine",
+          "alloy",
+          "compound",
+          "混合",
+          "搅拌",
+          "合金",
+          "组合",
+          "化合物"
+        ],
+        "input_count": {
+          "min": 1,
+          "max": 9
+        },
+        "output_count": {
+          "min": 1,
+          "max": 4
+        },
+        "typical_patterns": [
+          "多种材料混合",
+          "制作合金或化合物",
+          "液体混合",
+          "需要加热的混合过程"
+        ]
+      },
+      "examples": [
+        {
+          "name": "混合安山合金 / Mix Andesite Alloy",
+          "recipe": {
+            "type": "create:mixing",
+            "ingredients": [
+              {
+                "item": "minecraft:andesite"
+              },
+              {
+                "item": "minecraft:iron_nugget"
+              }
+            ],
+            "results": [
+              {
+                "item": "create:andesite_alloy",
+                "count": 1
+              }
+            ],
+            "heatRequirement": "heated"
+          }
+        },
+        {
+          "name": "混合黄铜 / Mix Brass",
+          "recipe": {
+            "type": "create:mixing",
+            "ingredients": [
+              {
+                "item": "minecraft:copper_ingot"
+              },
+              {
+                "item": "create:zinc_ingot"
+              }
+            ],
+            "results": [
+              {
+                "item": "create:brass_ingot",
+                "count": 2
+              }
+            ],
+            "heatRequirement": "heated"
+          }
+        }
+      ]
+    },
+    {
+      "recipe_type_id": "create:pressing",
+      "display_name": "压制 / Pressing",
+      "description": "使用压制器压制物品 / Pressing items with mechanical press",
+      "icon": "create:mechanical_press",
+      "template": {
+        "type": "create:pressing",
+        "ingredients": [],
+        "results": []
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:pressing"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 1,
+          "description": "要压制的物品 / Item to press"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "description": "压制结果 / Pressing results"
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "metal",
+          "plate",
+          "ingot",
+          "material"
+        ],
+        "keywords": [
+          "press",
+          "plate",
+          "ingot",
+          "compress",
+          "压制",
+          "板",
+          "锭",
+          "压缩"
+        ],
+        "input_count": {
+          "min": 1,
+          "max": 1
+        },
+        "output_count": {
+          "min": 1,
+          "max": 2
+        },
+        "typical_patterns": [
+          "锭压制成板",
+          "材料压缩加工",
+          "形状变换"
+        ]
+      },
+      "examples": [
+        {
+          "name": "压制铁板 / Press Iron Plate",
+          "recipe": {
+            "type": "create:pressing",
+            "ingredients": [
+              {
+                "item": "minecraft:iron_ingot"
+              }
+            ],
+            "results": [
+              {
+                "item": "create:iron_sheet"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "recipe_type_id": "create:deploying",
+      "display_name": "装配 / Deploying",
+      "description": "使用机械手装配物品 / Deploying items with deployer",
+      "icon": "create:deployer",
+      "template": {
+        "type": "create:deploying",
+        "ingredients": [],
+        "results": []
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:deploying"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 2,
+          "max_items": 2,
+          "description": "装配材料（基础物品+工具/材料） / Deploy ingredients (base item + tool/material)"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "description": "装配结果 / Deploy results"
+        },
+        "keepHeldItem": {
+          "required": false,
+          "type": "boolean",
+          "default": false,
+          "description": "保留手持物品 / Keep held item"
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "assembly",
+          "upgrade",
+          "modification"
+        ],
+        "keywords": [
+          "deploy",
+          "assemble",
+          "apply",
+          "装配",
+          "组装",
+          "应用"
+        ],
+        "input_count": {
+          "min": 2,
+          "max": 2
+        },
+        "output_count": {
+          "min": 1,
+          "max": 2
+        },
+        "typical_patterns": [
+          "使用工具加工物品",
+          "物品组装",
+          "应用材料到基础物品"
+        ]
+      },
+      "examples": [
+        {
+          "name": "装配齿轮 / Deploy Cogwheel",
+          "recipe": {
+            "type": "create:deploying",
+            "ingredients": [
+              {
+                "item": "create:shaft"
+              },
+              {
+                "tag": "minecraft:planks"
+              }
+            ],
+            "results": [
+              {
+                "item": "create:cogwheel"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "recipe_type_id": "create:filling",
+      "display_name": "灌注 / Filling",
+      "description": "使用分液器灌注流体 / Filling with spout",
+      "icon": "create:spout",
+      "template": {
+        "type": "create:filling",
+        "ingredients": [],
+        "results": []
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:filling"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 2,
+          "max_items": 2,
+          "description": "灌注材料（容器+流体） / Fill ingredients (container + fluid)"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "description": "灌注结果 / Fill results"
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "container",
+          "bottle",
+          "bucket",
+          "filled_item"
+        ],
+        "keywords": [
+          "fill",
+          "fluid",
+          "bottle",
+          "bucket",
+          "灌注",
+          "流体",
+          "瓶子",
+          "桶"
+        ],
+        "input_count": {
+          "min": 2,
+          "max": 2
+        },
+        "output_count": {
+          "min": 1,
+          "max": 1
+        },
+        "typical_patterns": [
+          "流体灌注到容器",
+          "填充瓶子或桶",
+          "液体物品制作"
+        ]
+      },
+      "examples": [
+        {
+          "name": "灌注蜂蜜瓶 / Fill Honey Bottle",
+          "recipe": {
+            "type": "create:filling",
+            "ingredients": [
+              {
+                "item": "minecraft:glass_bottle"
+              },
+              {
+                "fluid": "create:honey",
+                "amount": 250
+              }
+            ],
+            "results": [
+              {
+                "item": "minecraft:honey_bottle"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "recipe_type_id": "create:emptying",
+      "display_name": "抽取 / Emptying",
+      "description": "使用管道抽取流体 / Emptying with item drain",
+      "icon": "create:item_drain",
+      "template": {
+        "type": "create:emptying",
+        "ingredients": [],
+        "results": []
+      },
+      "field_specs": {
+        "type": {
+          "required": true,
+          "type": "string",
+          "constant": "create:emptying"
+        },
+        "ingredients": {
+          "required": true,
+          "type": "array",
+          "min_items": 1,
+          "max_items": 1,
+          "description": "要抽取的物品 / Item to drain"
+        },
+        "results": {
+          "required": true,
+          "type": "array",
+          "min_items": 2,
+          "max_items": 2,
+          "description": "抽取结果（空容器+流体） / Drain results (empty container + fluid)"
+        }
+      },
+      "suitable_for": {
+        "item_categories": [
+          "filled_container",
+          "filled_bottle",
+          "filled_bucket"
+        ],
+        "keywords": [
+          "empty",
+          "drain",
+          "extract",
+          "fluid",
+          "抽取",
+          "排空",
+          "提取",
+          "流体"
+        ],
+        "input_count": {
+          "min": 1,
+          "max": 1
+        },
+        "output_count": {
+          "min": 2,
+          "max": 2
+        },
+        "typical_patterns": [
+          "从容器抽取流体",
+          "清空瓶子或桶",
+          "流体分离"
+        ]
+      },
+      "examples": [
+        {
+          "name": "抽取蜂蜜瓶 / Empty Honey Bottle",
+          "recipe": {
+            "type": "create:emptying",
+            "ingredients": [
+              {
+                "item": "minecraft:honey_bottle"
+              }
+            ],
+            "results": [
+              {
+                "item": "minecraft:glass_bottle"
+              },
+              {
+                "fluid": "create:honey",
+                "amount": 250
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -14,16 +14,18 @@
 - 模组A添加的寿司通过料理锅制作
 - 模组B添加的寿司却只能通过工作台合成
 
-这种不一致性破坏了游戏的沉浸感。**Delightify** 利用 AI 语义理解，自动生成统一的配方兼容脚本。
+这种不一致性破坏了游戏的沉浸感。**Delightify** 采用 **LLM 驱动**的智能转换方案，通过语义理解自动生成统一的配方兼容脚本，并在转换过程中积累数据，为未来的规则引擎提供训练基础。
 
 ### ✨ 核心特性
 
-- 🤖 **智能分类**: 自动识别物品并推荐最合适的配方类型
-- 📦 **批量处理**: 一次处理多个配方，支持频繁交互审查
-- 🎯 **混合架构**: 规则引擎 + 本地小模型，快速且准确
-- 💻 **Web界面**: 基于 Gradio 的友好用户界面
-- 🔌 **完全离线**: 支持本地模型，无需联网
-- 📝 **多格式支持**: 输出 KubeJS / CraftTweaker / 数据包
+- 🤖 **LLM 驱动**: 支持本地模型（Ollama）和在线 API（OpenAI/Anthropic/自定义端点）
+- 📥 **灵活输入**: JSON 文件上传或 KubeJS 脚本解析，支持批量导入
+- 📤 **多格式输出**: KubeJS JSON/Script、Datapack 格式，满足不同需求
+- 🎯 **智能标记**: 自动标记低置信度配方，需要人工审核
+- 💾 **数据积累**: 记录转换历史（LLM 推荐、用户操作、最终结果），为未来规则引擎做准备
+- 🔧 **高度可定制**: 配方类型元数据完全可扩展，支持任意模组
+- 💻 **Web 界面**: 基于 Gradio 的友好交互界面，支持实时预览和编辑
+- 🔌 **完全离线**: 支持 Ollama 本地模型，无需联网
 
 ### 🚀 快速开始
 
@@ -37,10 +39,31 @@ cd Delightify
 # 安装依赖
 pip install -r requirements.txt
 
-# (可选) 安装本地模型支持
+# (推荐) 安装本地模型支持
 # 安装 ollama: https://ollama.ai
 ollama pull qwen2.5:7b
 ```
+
+#### 配置 LLM
+
+1. **使用 Ollama (推荐，本地运行)**
+   
+   确保 Ollama 已安装并运行：
+   ```bash
+   ollama serve
+   ```
+   
+   系统将自动使用本地 Ollama 模型（配置在 `config/llm_config.json`）
+
+2. **使用在线 API (可选)**
+   
+   如需使用 OpenAI 或 Anthropic，创建 `.env` 文件：
+   ```bash
+   OPENAI_API_KEY=sk-...
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+   
+   编辑 `config/llm_config.json` 启用相应提供商
 
 #### 运行
 
@@ -81,30 +104,63 @@ ServerEvents.recipes(event => {
 });
 ```
 
+### 📚 文档链接
+
+- 📘 [系统架构设计](docs/architecture.md) - 详细的系统设计和工作流程
+- ⚙️ [配置指南](docs/configuration.md) - LLM 配置、配方类型元数据、输出选项
+- 📋 [数据格式规范](docs/data-formats.md) - 输入输出格式的完整规范
+
 ### 🏗️ 项目架构
 
+**当前阶段: LLM 驱动 (100%)**
 ```
-规则引擎 (80%) → 本地小模型 (15%) → 人工确认 (5%)
-    ↓                ↓                    ↓
-  极快              快速                 精确
- 确定性          智能推理              边界情况
+用户上传 → 解析 → LLM 转换 → 智能标记 → 交互审核 → 输出
+    ↓
+快速、智能、可解释
+自动积累转换数据
 ```
+
+**未来规划: 混合架构**
+```
+规则引擎 (80%) → 本地 LLM (15%) → 人工确认 (5%)
+    ↓                ↓                  ↓
+  极快              快速               精确
+ 确定性          智能推理           边界情况
+```
+
+通过积累的转换历史数据，系统将逐步构建规则引擎，实现从完全 LLM 驱动到混合架构的平滑过渡。
 
 ### 🛣️ 开发路线图
 
-- [x] **阶段 0**: 项目初始化
-- [ ] **阶段 1**: 原型验证 (MVP)
-  - [ ] 规则引擎实现
-  - [ ] 基础 Web UI (Gradio)
-  - [ ] 配方解析器
-- [ ] **阶段 2**: 模型集成
-  - [ ] Ollama 本地模型集成
-  - [ ] Prompt 优化
-  - [ ] 批量处理与交互审查
-- [ ] **阶段 3**: 增强功能
-  - [ ] 配方验证
-  - [ ] 冲突检测
-  - [ ] 历史记录与会话保存
+- [x] **阶段 0**: 项目初始化与架构设计
+  - [x] 项目结构搭建
+  - [x] 架构文档编写
+  - [x] 配置系统设计
+- [ ] **阶段 1**: MVP 实现 (2-3周)
+  - [ ] 输入解析器（JSON + KubeJS）
+  - [ ] Ollama 集成
+  - [ ] Prompt 模板系统
+  - [ ] 基础 Gradio UI
+  - [ ] 单配方转换流程
+  - [ ] 配方类型元数据加载
+- [ ] **阶段 2**: 功能增强 (2周)
+  - [ ] 批量处理支持
+  - [ ] 多 LLM 提供商支持（OpenAI/Anthropic/自定义）
+  - [ ] 交互审核界面
+  - [ ] 多格式输出（KubeJS JSON/Script、Datapack）
+  - [ ] 转换历史记录系统
+  - [ ] 可疑配方标记
+- [ ] **阶段 3**: 优化与扩展 (1-2周)
+  - [ ] Prompt 优化（Few-shot learning）
+  - [ ] 响应缓存机制
+  - [ ] 并行处理优化
+  - [ ] 数据分析工具
+  - [ ] 成本跟踪
+- [ ] **未来**: 规则引擎集成
+  - [ ] 历史数据分析
+  - [ ] 规则提取算法
+  - [ ] 混合架构实现
+  - [ ] 性能优化
 
 ### 🎯 目标用户
 
@@ -129,16 +185,18 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 **Delightify** solves the common modpack development problem where different mods add similar items with incompatible crafting methods, breaking immersion.
 
-Using AI semantic understanding, it automatically generates unified recipe compatibility scripts.
+Using **LLM-driven** intelligent conversion, it automatically generates unified recipe compatibility scripts through semantic understanding, while accumulating conversion data to build future rule engines.
 
 ### ✨ Features
 
-- 🤖 **Smart Classification**: Automatically categorize items and recommend recipe types
-- 📦 **Batch Processing**: Process multiple recipes with interactive review
-- 🎯 **Hybrid Architecture**: Rule engine + local small model
-- 💻 **Web Interface**: User-friendly Gradio-based UI
-- 🔌 **Fully Offline**: Local model support, no internet required
-- 📝 **Multi-format**: Output KubeJS / CraftTweaker / Datapacks
+- 🤖 **LLM-Driven**: Supports local models (Ollama) and online APIs (OpenAI/Anthropic/Custom endpoints)
+- 📥 **Flexible Input**: JSON file upload or KubeJS script parsing, supports batch import
+- 📤 **Multi-format Output**: KubeJS JSON/Script, Datapack format
+- 🎯 **Smart Marking**: Automatically marks low-confidence recipes for manual review
+- 💾 **Data Accumulation**: Records conversion history (LLM recommendations, user actions, final results) for future rule engine
+- 🔧 **Highly Customizable**: Recipe type metadata fully extensible, supports any mod
+- 💻 **Web Interface**: User-friendly Gradio-based UI with real-time preview and editing
+- 🔌 **Fully Offline**: Supports Ollama local models, no internet required
 
 ### 🚀 Quick Start
 
@@ -150,21 +208,41 @@ cd Delightify
 # Install dependencies
 pip install -r requirements.txt
 
+# (Recommended) Install local model support
+# Install Ollama: https://ollama.ai
+ollama pull qwen2.5:7b
+
 # Run Web UI
 python run.py
 ```
 
 Visit http://localhost:7860 to start!
 
+### 📚 Documentation
+
+- 📘 [System Architecture Design](docs/architecture.md) - Detailed system design and workflow
+- ⚙️ [Configuration Guide](docs/configuration.md) - LLM config, recipe type metadata, output options
+- 📋 [Data Format Specification](docs/data-formats.md) - Complete specification for input/output formats
+
 ### 📊 Architecture
 
+**Current Stage: LLM-Driven (100%)**
 ```
-Layer 1: Rule Engine (80% coverage, <1ms)
-   ↓
-Layer 2: Local Small Model (15% coverage, ~200ms)
-   ↓
-Layer 3: Manual Review (5% edge cases)
+User Upload → Parse → LLM Conversion → Smart Marking → Interactive Review → Output
+    ↓
+Fast, intelligent, explainable
+Automatically accumulate conversion data
 ```
+
+**Future Plan: Hybrid Architecture**
+```
+Rule Engine (80%) → Local LLM (15%) → Manual Review (5%)
+    ↓                ↓                  ↓
+Very Fast          Fast               Accurate
+Deterministic    Smart Reasoning    Edge Cases
+```
+
+Through accumulated conversion history data, the system will gradually build a rule engine, achieving a smooth transition from fully LLM-driven to hybrid architecture.
 
 ### 🎯 Target Users
 
