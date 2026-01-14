@@ -24,7 +24,7 @@
 - 🎯 **智能标记**: 自动标记低置信度配方，需要人工审核
 - 💾 **数据积累**: 记录转换历史（LLM 推荐、用户操作、最终结果），为未来规则引擎做准备
 - 🔧 **高度可定制**: 配方类型元数据完全可扩展，支持任意模组
-- 💻 **Web 界面**: 基于 Gradio 的友好交互界面，支持实时预览和编辑
+- 💻 **Web 界面**: 基于 React 的现代化交互界面，支持实时预览和编辑
 - 🔌 **完全离线**: 支持 Ollama 本地模型，无需联网
 
 ### 🚀 快速开始
@@ -140,7 +140,7 @@ ServerEvents.recipes(event => {
   - [ ] 输入解析器（JSON + KubeJS）
   - [ ] Ollama 集成
   - [ ] Prompt 模板系统
-  - [ ] 基础 Gradio UI
+  - [ ] 基础 React + FastAPI 前后端架构
   - [ ] 单配方转换流程
   - [ ] 配方类型元数据加载
 - [ ] **阶段 2**: 功能增强 (2周)
@@ -195,7 +195,7 @@ Using **LLM-driven** intelligent conversion, it automatically generates unified 
 - 🎯 **Smart Marking**: Automatically marks low-confidence recipes for manual review
 - 💾 **Data Accumulation**: Records conversion history (LLM recommendations, user actions, final results) for future rule engine
 - 🔧 **Highly Customizable**: Recipe type metadata fully extensible, supports any mod
-- 💻 **Web Interface**: User-friendly Gradio-based UI with real-time preview and editing
+- 💻 **Web Interface**: Modern React-based UI with real-time preview and editing
 - 🔌 **Fully Offline**: Supports Ollama local models, no internet required
 
 ### 🚀 Quick Start

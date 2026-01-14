@@ -935,7 +935,284 @@ class LLMRetryStrategy:
    - 各配方类型的转换成功率
    - 处理时间和成本统计
 
-### 5. 完整工作流
+### 5. 前端架构设计
+
+#### 5.1 技术栈选择
+
+系统采用现代化的 React 技术栈构建前端界面，以提供更好的可扩展性、性能和用户体验。
+
+**核心技术**：
+
+- **前端框架**: React 18+ (带 TypeScript)
+  - 组件化开发，代码可维护性高
+  - 丰富的生态系统和第三方库
+  - 强类型支持提高代码质量
+  
+- **构建工具**: Vite
+  - 极速的开发服务器启动
+  - 高效的 HMR (热模块替换)
+  - 优化的生产构建
+  
+- **UI 组件库**: Ant Design / shadcn/ui
+  - 企业级 UI 设计
+  - 丰富的组件库
+  - 国际化支持
+  
+- **状态管理**: Zustand / React Query
+  - 轻量级状态管理
+  - 服务器状态同步
+  - 缓存和自动重新获取
+  
+- **代码编辑器**: Monaco Editor
+  - VSCode 同款编辑器
+  - 语法高亮和自动补全
+  - 支持 JSON 和 JavaScript 格式
+
+**后端 API**：
+
+- **Web 框架**: FastAPI (Python)
+  - 高性能异步支持
+  - 自动 API 文档生成
+  - WebSocket 支持用于实时更新
+  - 与 Python LLM 库无缝集成
+
+#### 5.2 前端架构
+
+**应用结构**：
+
+```
+frontend/
+├── src/
+│   ├── components/          # React 组件
+│   │   ├── common/          # 通用组件
+│   │   ├── upload/          # 上传组件
+│   │   ├── editor/          # 编辑器组件
+│   │   └── review/          # 审核组件
+│   ├── pages/               # 页面组件
+│   │   ├── Home/            # 首页
+│   │   ├── Upload/          # 上传页面
+│   │   ├── Review/          # 审核页面
+│   │   └── History/         # 历史记录页面
+│   ├── hooks/               # 自定义 Hooks
+│   ├── services/            # API 服务
+│   ├── store/               # 状态管理
+│   ├── types/               # TypeScript 类型定义
+│   └── utils/               # 工具函数
+├── public/                  # 静态资源
+└── package.json
+```
+
+**主要页面**：
+
+1. **上传页面** (`/upload`)
+   - 文件拖放上传
+   - JSON/KubeJS 脚本输入
+   - 批量上传支持
+   - 实时格式验证
+
+2. **处理页面** (`/processing`)
+   - 实时进度显示
+   - LLM 处理状态
+   - 错误和警告提示
+   - 可中断处理
+
+3. **审核页面** (`/review`)
+   - 并排对比视图
+   - Monaco 编辑器集成
+   - 置信度和警告显示
+   - 批量操作工具栏
+   - 筛选和搜索功能
+
+4. **历史记录页面** (`/history`)
+   - 转换历史浏览
+   - 数据统计图表
+   - 导出功能
+   - 规则分析
+
+5. **配置页面** (`/settings`)
+   - LLM 提供商配置
+   - 输出格式选项
+   - 界面偏好设置
+
+#### 5.3 前后端通信
+
+**RESTful API 端点**：
+
+```typescript
+// 配方上传和解析
+POST   /api/recipes/upload          // 上传文件
+POST   /api/recipes/parse           // 解析 KubeJS 脚本
+GET    /api/recipes/:id             // 获取配方详情
+
+// LLM 转换
+POST   /api/convert/single          // 单个配方转换
+POST   /api/convert/batch           // 批量转换
+GET    /api/convert/status/:jobId   // 查询转换状态
+
+// 配方审核
+GET    /api/recipes/pending         // 获取待审核配方
+PUT    /api/recipes/:id/approve     // 批准配方
+PUT    /api/recipes/:id/reject      // 拒绝配方
+PUT    /api/recipes/:id/modify      // 修改配方
+
+// 输出生成
+POST   /api/output/generate         // 生成输出文件
+GET    /api/output/download/:id     // 下载生成的文件
+
+// 历史和统计
+GET    /api/history                 // 获取转换历史
+GET    /api/statistics              // 获取统计数据
+GET    /api/patterns                // 获取转换模式分析
+```
+
+**WebSocket 实时更新**：
+
+```typescript
+// 连接 WebSocket
+const ws = new WebSocket('ws://localhost:8000/ws/convert/{sessionId}');
+
+// 接收实时更新
+ws.onmessage = (event) => {
+  const update = JSON.parse(event.data);
+  // update.type: 'progress' | 'completed' | 'error'
+  // update.data: 进度数据或结果
+};
+```
+
+#### 5.4 关键组件设计
+
+**配方对比组件** (`RecipeComparison.tsx`):
+
+```typescript
+interface RecipeComparisonProps {
+  originalRecipe: Recipe;
+  convertedRecipe: ConvertedRecipe;
+  onApprove: () => void;
+  onReject: () => void;
+  onModify: (modified: Recipe) => void;
+}
+
+// 特性：
+// - 并排 Monaco 编辑器
+// - 语法高亮
+// - 差异标记
+// - 置信度指示器
+// - 警告和错误显示
+```
+
+**批量操作工具栏** (`BatchActions.tsx`):
+
+```typescript
+interface BatchActionsProps {
+  selectedRecipes: string[];
+  onApproveAll: () => void;
+  onRejectAll: () => void;
+  onFilterChange: (filter: FilterOptions) => void;
+}
+
+// 特性：
+// - 全选/取消全选
+// - 批量批准/拒绝
+// - 智能筛选（按置信度、类型、警告等）
+// - 导出选中的配方
+```
+
+**进度监控组件** (`ProgressMonitor.tsx`):
+
+```typescript
+interface ProgressMonitorProps {
+  jobId: string;
+  totalRecipes: number;
+  onComplete: (results: ConversionResults) => void;
+  onError: (error: Error) => void;
+}
+
+// 特性：
+// - 实时进度条
+// - 当前处理配方显示
+// - 成功/失败计数
+// - 预估剩余时间
+// - 取消处理按钮
+```
+
+#### 5.5 用户体验优化
+
+**性能优化**：
+
+1. **虚拟滚动**: 处理大量配方列表时使用虚拟滚动
+2. **懒加载**: 按需加载配方详情和编辑器
+3. **代码分割**: 路由级别的代码分割
+4. **缓存策略**: React Query 智能缓存服务器数据
+
+**交互优化**：
+
+1. **键盘快捷键**: 
+   - `Ctrl+Enter`: 批准当前配方
+   - `Ctrl+R`: 拒绝当前配方
+   - `Ctrl+E`: 编辑当前配方
+   - `→/←`: 下一个/上一个配方
+
+2. **自动保存**: 编辑时自动保存到本地存储
+
+3. **撤销/重做**: 支持配方编辑的撤销重做
+
+4. **拖放**: 支持文件拖放上传
+
+**响应式设计**：
+
+- 支持桌面端（主要使用场景）
+- 平板适配（有限功能）
+- 深色/浅色主题切换
+
+#### 5.6 开发和部署
+
+**开发环境**：
+
+```bash
+# 前端开发
+cd frontend
+npm install
+npm run dev          # 启动开发服务器 (http://localhost:5173)
+
+# 后端开发
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload  # 启动 FastAPI (http://localhost:8000)
+```
+
+**生产部署**：
+
+```bash
+# 前端构建
+npm run build        # 生成 dist/ 目录
+
+# 部署选项：
+# 1. 静态托管 (Vercel, Netlify) + 独立 API 服务器
+# 2. Docker 容器化部署
+# 3. 单一服务器部署（FastAPI 服务静态文件）
+```
+
+**Docker 部署示例**：
+
+```dockerfile
+# Dockerfile
+FROM node:18 as frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+FROM python:3.11
+WORKDIR /app
+COPY backend/requirements.txt ./
+RUN pip install -r requirements.txt
+COPY backend/ ./
+COPY --from=frontend-builder /app/frontend/dist ./static
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### 6. 完整工作流
 
 ```
 ┌─────────────┐
@@ -1229,7 +1506,284 @@ Configuration includes temperature, tokens, timeout, retry settings, and fallbac
 - Provide training data for future rule engine
 - Analyze conversion patterns to generate rules
 
-### 5. Complete Workflow
+### 5. Frontend Architecture Design
+
+#### 5.1 Technology Stack
+
+The system adopts a modern React-based technology stack for the frontend interface to provide better scalability, performance, and user experience.
+
+**Core Technologies**:
+
+- **Frontend Framework**: React 18+ (with TypeScript)
+  - Component-based development for better maintainability
+  - Rich ecosystem and third-party libraries
+  - Strong typing support for code quality
+
+- **Build Tool**: Vite
+  - Lightning-fast dev server startup
+  - Efficient HMR (Hot Module Replacement)
+  - Optimized production builds
+
+- **UI Component Library**: Ant Design / shadcn/ui
+  - Enterprise-level UI design
+  - Rich component library
+  - Internationalization support
+
+- **State Management**: Zustand / React Query
+  - Lightweight state management
+  - Server state synchronization
+  - Caching and automatic refetching
+
+- **Code Editor**: Monaco Editor
+  - Same editor as VSCode
+  - Syntax highlighting and auto-completion
+  - Supports JSON and JavaScript formats
+
+**Backend API**:
+
+- **Web Framework**: FastAPI (Python)
+  - High-performance async support
+  - Automatic API documentation generation
+  - WebSocket support for real-time updates
+  - Seamless integration with Python LLM libraries
+
+#### 5.2 Frontend Architecture
+
+**Application Structure**:
+
+```
+frontend/
+├── src/
+│   ├── components/          # React components
+│   │   ├── common/          # Common components
+│   │   ├── upload/          # Upload components
+│   │   ├── editor/          # Editor components
+│   │   └── review/          # Review components
+│   ├── pages/               # Page components
+│   │   ├── Home/            # Home page
+│   │   ├── Upload/          # Upload page
+│   │   ├── Review/          # Review page
+│   │   └── History/         # History page
+│   ├── hooks/               # Custom hooks
+│   ├── services/            # API services
+│   ├── store/               # State management
+│   ├── types/               # TypeScript type definitions
+│   └── utils/               # Utility functions
+├── public/                  # Static assets
+└── package.json
+```
+
+**Main Pages**:
+
+1. **Upload Page** (`/upload`)
+   - Drag-and-drop file upload
+   - JSON/KubeJS script input
+   - Batch upload support
+   - Real-time format validation
+
+2. **Processing Page** (`/processing`)
+   - Real-time progress display
+   - LLM processing status
+   - Error and warning alerts
+   - Cancellable operations
+
+3. **Review Page** (`/review`)
+   - Side-by-side comparison view
+   - Monaco editor integration
+   - Confidence and warning indicators
+   - Batch operation toolbar
+   - Filter and search functionality
+
+4. **History Page** (`/history`)
+   - Conversion history browser
+   - Statistical charts
+   - Export functionality
+   - Pattern analysis
+
+5. **Settings Page** (`/settings`)
+   - LLM provider configuration
+   - Output format options
+   - UI preferences
+
+#### 5.3 Frontend-Backend Communication
+
+**RESTful API Endpoints**:
+
+```typescript
+// Recipe upload and parsing
+POST   /api/recipes/upload          // Upload files
+POST   /api/recipes/parse           // Parse KubeJS scripts
+GET    /api/recipes/:id             // Get recipe details
+
+// LLM conversion
+POST   /api/convert/single          // Single recipe conversion
+POST   /api/convert/batch           // Batch conversion
+GET    /api/convert/status/:jobId   // Query conversion status
+
+// Recipe review
+GET    /api/recipes/pending         // Get pending recipes
+PUT    /api/recipes/:id/approve     // Approve recipe
+PUT    /api/recipes/:id/reject      // Reject recipe
+PUT    /api/recipes/:id/modify      // Modify recipe
+
+// Output generation
+POST   /api/output/generate         // Generate output files
+GET    /api/output/download/:id     // Download generated files
+
+// History and statistics
+GET    /api/history                 // Get conversion history
+GET    /api/statistics              // Get statistics
+GET    /api/patterns                // Get pattern analysis
+```
+
+**WebSocket Real-time Updates**:
+
+```typescript
+// Connect to WebSocket
+const ws = new WebSocket('ws://localhost:8000/ws/convert/{sessionId}');
+
+// Receive real-time updates
+ws.onmessage = (event) => {
+  const update = JSON.parse(event.data);
+  // update.type: 'progress' | 'completed' | 'error'
+  // update.data: progress data or results
+};
+```
+
+#### 5.4 Key Component Design
+
+**Recipe Comparison Component** (`RecipeComparison.tsx`):
+
+```typescript
+interface RecipeComparisonProps {
+  originalRecipe: Recipe;
+  convertedRecipe: ConvertedRecipe;
+  onApprove: () => void;
+  onReject: () => void;
+  onModify: (modified: Recipe) => void;
+}
+
+// Features:
+// - Side-by-side Monaco editors
+// - Syntax highlighting
+// - Diff highlighting
+// - Confidence indicators
+// - Warning and error display
+```
+
+**Batch Actions Toolbar** (`BatchActions.tsx`):
+
+```typescript
+interface BatchActionsProps {
+  selectedRecipes: string[];
+  onApproveAll: () => void;
+  onRejectAll: () => void;
+  onFilterChange: (filter: FilterOptions) => void;
+}
+
+// Features:
+// - Select all/deselect all
+// - Batch approve/reject
+// - Smart filtering (by confidence, type, warnings, etc.)
+// - Export selected recipes
+```
+
+**Progress Monitor Component** (`ProgressMonitor.tsx`):
+
+```typescript
+interface ProgressMonitorProps {
+  jobId: string;
+  totalRecipes: number;
+  onComplete: (results: ConversionResults) => void;
+  onError: (error: Error) => void;
+}
+
+// Features:
+// - Real-time progress bar
+// - Current recipe display
+// - Success/failure counters
+// - Estimated time remaining
+// - Cancel processing button
+```
+
+#### 5.5 User Experience Optimization
+
+**Performance Optimization**:
+
+1. **Virtual Scrolling**: Use virtual scrolling for large recipe lists
+2. **Lazy Loading**: Load recipe details and editors on demand
+3. **Code Splitting**: Route-level code splitting
+4. **Caching Strategy**: Smart server data caching with React Query
+
+**Interaction Optimization**:
+
+1. **Keyboard Shortcuts**:
+   - `Ctrl+Enter`: Approve current recipe
+   - `Ctrl+R`: Reject current recipe
+   - `Ctrl+E`: Edit current recipe
+   - `→/←`: Next/previous recipe
+
+2. **Auto-save**: Automatically save edits to local storage
+
+3. **Undo/Redo**: Support undo/redo for recipe editing
+
+4. **Drag-and-Drop**: Support file drag-and-drop upload
+
+**Responsive Design**:
+
+- Desktop support (primary use case)
+- Tablet adaptation (limited features)
+- Dark/light theme toggle
+
+#### 5.6 Development and Deployment
+
+**Development Environment**:
+
+```bash
+# Frontend development
+cd frontend
+npm install
+npm run dev          # Start dev server (http://localhost:5173)
+
+# Backend development
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload  # Start FastAPI (http://localhost:8000)
+```
+
+**Production Deployment**:
+
+```bash
+# Frontend build
+npm run build        # Generate dist/ directory
+
+# Deployment options:
+# 1. Static hosting (Vercel, Netlify) + separate API server
+# 2. Docker containerized deployment
+# 3. Single server deployment (FastAPI serves static files)
+```
+
+**Docker Deployment Example**:
+
+```dockerfile
+# Dockerfile
+FROM node:18 as frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+FROM python:3.11
+WORKDIR /app
+COPY backend/requirements.txt ./
+RUN pip install -r requirements.txt
+COPY backend/ ./
+COPY --from=frontend-builder /app/frontend/dist ./static
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### 6. Complete Workflow
 
 ```
 User Upload → Input Parsing → Unified Format → LLM Engine → 
