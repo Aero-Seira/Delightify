@@ -615,13 +615,17 @@ data/
    - 适用于：复杂食物制作、需要烹饪的料理
    - 输入：1-6种材料
    - 特殊字段：cookingtime, experience, container
+   - 详细说明：{farmersdelight:cooking的prompt_template内容}
 
 2. minecraft:crafting_shapeless
    - 适用于：简单组合、不需要特定摆放的合成
    - 输入：1-9种材料
    - 特殊字段：无
+   - 详细说明：{minecraft:crafting_shapeless的prompt_template内容}
 
 [... 其他配方类型 ...]
+
+**注意**：每个配方类型的"详细说明"部分会动态注入该类型的 `prompt_template.template` 内容，这是用户可以在配方类型元数据中自定义的，用于为 LLM 提供更准确的上下文信息。
 
 【物品信息】
 - minecraft:carrot: 类别=食材, 标签=[food, vegetable]
