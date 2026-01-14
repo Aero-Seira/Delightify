@@ -26,6 +26,18 @@ env/
 ENV/
 .venv/
 
+# Frontend / Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+frontend/dist/
+frontend/build/
+.vite/
+*.local
+
 # IDE
 .vscode/
 .idea/
@@ -49,10 +61,11 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+.vitest/
 
 # Temporary files
 tmp/
 temp/
 
-# Gradio
+# Gradio (legacy - no longer used)
 flagged/
