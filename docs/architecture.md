@@ -1069,7 +1069,7 @@ GET    /api/patterns                // 获取转换模式分析
 
 ```typescript
 // 连接 WebSocket
-const ws = new WebSocket('ws://localhost:8000/ws/convert/{sessionId}');
+const ws = new WebSocket(`ws://localhost:8000/ws/convert/${sessionId}`);
 
 // 接收实时更新
 ws.onmessage = (event) => {
@@ -1640,7 +1640,7 @@ GET    /api/patterns                // Get pattern analysis
 
 ```typescript
 // Connect to WebSocket
-const ws = new WebSocket('ws://localhost:8000/ws/convert/{sessionId}');
+const ws = new WebSocket(`ws://localhost:8000/ws/convert/${sessionId}`);
 
 // Receive real-time updates
 ws.onmessage = (event) => {

@@ -374,7 +374,9 @@ const ProgressMonitor = ({ jobId }) => {
 - 历史记录和分析
 - 用户偏好设置
 
-**总开发时间**: 5-7周（与 Gradio 方案相比仅多 1-2周，但获得了更好的产品质量）
+**总开发时间**: 5-7周
+
+**与 Gradio 对比**: 使用 Gradio 的话，初期原型可能只需 3-4周，但由于后期扩展和定制的困难，实际达到相同功能和质量可能需要 8-10周甚至更长。React 方案虽然前期投入稍多，但长期收益更大。
 
 ---
 
@@ -558,4 +560,6 @@ For a project like Delightify:
 - History and analysis
 - User preferences
 
-**Total Development Time**: 5-7 weeks (only 1-2 weeks more than Gradio, but with much better product quality)
+**Total Development Time**: 5-7 weeks
+
+**Compared to Gradio**: With Gradio, an initial prototype might take only 3-4 weeks, but due to difficulties in later expansion and customization, achieving the same functionality and quality could take 8-10 weeks or longer. The React approach requires slightly more upfront investment but provides better long-term value.
