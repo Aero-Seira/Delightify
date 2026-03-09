@@ -1,6 +1,7 @@
 # 🎮 Delightify
 
-> AI-powered recipe compatibility system for Minecraft modpacks - automatically harmonize recipes across different mods
+> 一站式可视化 Minecraft 配方魔改平台，支持模组数据库管理、可视化配方编辑与 AI 辅助转换
+> One-stop visual Minecraft recipe modification platform with mod database management, visual recipe editing, and AI-assisted conversion
 
 [English](#english) | [中文](#中文)
 
@@ -10,23 +11,20 @@
 
 ### 🎯 项目简介
 
-在 Minecraft 整合包开发中，经常遇到这样的问题：
-- 模组A添加的寿司通过料理锅制作
-- 模组B添加的寿司却只能通过工作台合成
+整合包开发者在魔改配方时面临诸多痛点：需要手动翻阅文档才能找到物品 ID、手写 JSON 且无法直观预览效果、不同模组的配方格式各异难以统一、缺乏可视化工具来管理大量配方……
 
-这种不一致性破坏了游戏的沉浸感。**Delightify** 采用 **LLM 驱动**的智能转换方案，通过语义理解自动生成统一的配方兼容脚本，并在转换过程中积累数据，为未来的规则引擎提供训练基础。
+**Delightify** 是专为整合包开发者打造的**可视化配方魔改工作台**。通过导入模组 JAR 文件，自动解析并建立物品、配方、材质、翻译的**本地知识数据库**；提供**可视化配方编辑器**，拖拽式操作，物品图标实时渲染，所见即所得；内置 **AI 辅助功能**（可选），针对批量迁移场景提供智能建议，但用户始终掌控最终决策。支持导出为 KubeJS、Datapack 等主流格式，未来规划扩展到附魔、战利品表等更多魔改类型。
 
 ### ✨ 核心特性
 
-- 🤖 **LLM 驱动**: 支持本地模型（Ollama）和在线 API（OpenAI/Anthropic/自定义端点）
-- 📥 **灵活输入**: 上传模组 JAR 文件，自动解析物品、配方、材质与翻译数据
-- 🗄️ **知识数据库**: 维护原版与模组的物品、配方、材质、翻译数据，从 JAR 自动解析
-- 📤 **多格式输出**: KubeJS JSON/Script、Datapack 格式，满足不同需求
-- 🎯 **智能标记**: 自动标记低置信度配方，需要人工审核
-- 💾 **数据积累**: 记录转换历史（LLM 推荐、用户操作、最终结果），为未来规则引擎做准备
-- 🔧 **高度可定制**: 配方类型元数据完全可扩展，支持任意模组
-- 💻 **Web 界面**: 基于 React + Node.js 的本地 WebUI，支持实时预览和可视化编辑
-- 🔌 **完全离线**: 支持 Ollama 本地模型，无需联网
+- 🗄️ **模组知识库**：导入模组 JAR，自动解析并持久化物品、配方、材质、翻译数据，建立本地数据库
+- 🎨 **可视化配方编辑器**：拖拽式操作，物品图标实时渲染，3×3 工作台/烹饪锅等多种配方类型可视化呈现
+- 🔍 **物品浏览器**：按模组/类别/标签筛选，材质图标展示，快速定位目标物品
+- 🤖 **AI 辅助转换**（可选功能）：对于批量迁移场景，支持 LLM 智能建议配方类型，提供置信度评分，人工审核确认
+- 📤 **多格式导出**：KubeJS Script/JSON、原版 Datapack，一键生成可用脚本
+- 🔧 **高度可扩展**：配方类型定义完全自定义，支持任意模组的任意配方格式
+- 🔌 **完全本地运行**：本地 WebUI，数据存储在本地 SQLite，支持离线使用，可选接入本地 Ollama 模型
+- 📦 **原版数据内置**：预置 Minecraft 原版全部物品与配方数据，开箱即用
 
 ### 🚀 快速开始
 
@@ -75,35 +73,42 @@ pnpm dev
 
 访问 http://localhost:3000 开始使用！
 
-### 📖 使用示例
+### 📖 典型工作流
 
-**输入配方（JSON格式）:**
-```json
-{
-  "type": "modA:cooking_pot",
-  "ingredients": [
-    {"item": "minecraft:rice"},
-    {"item": "minecraft:fish"}
-  ],
-  "result": {"item": "modA:sushi"}
-}
+**第一步：导入模组 JAR**
+```
+→ 自动解析 farmersdelight-1.20.jar
+→ 识别到 127 个物品，89 个配方，341 张材质
 ```
 
-**自动生成 KubeJS 脚本:**
+**第二步：浏览物品库**
+在物品浏览器中搜索「tomato」，可以看到：
+- 番茄的 16×16 材质图标
+- 所有以番茄为材料的配方列表
+- 番茄所属的物品标签（forge:vegetables 等）
+
+**第三步：可视化编辑配方**
+打开「番茄沙拉」配方，在 3×3 格子中拖拽调整材料，实时预览生成的 KubeJS 代码：
 ```javascript
 ServerEvents.recipes(event => {
-  // AI推荐: 烹饪类食物 → farmers_delight:cooking
   event.custom({
-    type: 'farmers_delight:cooking',
+    type: 'farmersdelight:cooking',
     ingredients: [
-      {item: 'minecraft:rice'},
-      {item: 'minecraft:fish'}
+      {item: 'farmersdelight:tomato'},
+      {item: 'minecraft:bowl'}
     ],
-    result: {item: 'modA:sushi'},
-    cookingtime: 200
+    result: {item: 'farmersdelight:tomato_soup'},
+    cookingtime: 200,
+    experience: 0.35
   });
 });
 ```
+
+**第四步（可选）：AI 辅助批量转换**
+上传旧版整合包的配方 JSON → AI 建议转换为 farmersdelight:cooking → 逐条审核，一键确认
+
+**第五步：导出**
+生成完整的 KubeJS 脚本，直接放入整合包的 kubejs/server_scripts/ 目录
 
 ### 📚 文档链接
 
@@ -115,61 +120,71 @@ ServerEvents.recipes(event => {
 
 ### 🏗️ 项目架构
 
-**当前阶段: LLM 驱动 (100%)**
 ```
-用户上传 → 解析 → LLM 转换 → 智能标记 → 交互审核 → 输出
-    ↓
-快速、智能、可解释
-自动积累转换数据
+┌─────────────────────────────────────────────────────┐
+│                     Delightify                       │
+│                                                     │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐ │
+│  │  模组管理    │  │  可视化编辑器  │  │  AI 辅助   │ │
+│  │             │  │              │  │  (可选)    │ │
+│  │  JAR 解析   │  │  配方槽位渲染  │  │  LLM 建议  │ │
+│  │  材质提取   │  │  物品拖拽操作  │  │  批量转换  │ │
+│  │  翻译导入   │  │  实时代码预览  │  │  审核工作流 │ │
+│  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘ │
+│         │                │                │         │
+│         └────────────────┴────────────────┘         │
+│                          │                          │
+│                          ▼                          │
+│              ┌───────────────────────┐              │
+│              │    本地知识数据库      │              │
+│              │  物品·配方·材质·翻译  │              │
+│              └───────────┬───────────┘              │
+│                          │                          │
+│                          ▼                          │
+│              ┌───────────────────────┐              │
+│              │       导出引擎        │              │
+│              │  KubeJS · Datapack   │              │
+│              └───────────────────────┘              │
+└─────────────────────────────────────────────────────┘
 ```
-
-**未来规划: 混合架构**
-```
-规则引擎 (80%) → 本地 LLM (15%) → 人工确认 (5%)
-    ↓                ↓                  ↓
-  极快              快速               精确
- 确定性          智能推理           边界情况
-```
-
-通过积累的转换历史数据，系统将逐步构建规则引擎，实现从完全 LLM 驱动到混合架构的平滑过渡。
 
 ### 🛣️ 开发路线图
 
-- [x] **阶段 0**: 项目初始化与架构设计
-  - [x] 项目结构搭建
-  - [x] 架构文档编写
-  - [x] 配置系统设计
-- [ ] **阶段 1**: 基础骨架（Milestone: v0.1）
+- [x] **阶段 0**：项目规划与架构设计（技术选型、数据库设计、文档）
+- [ ] **阶段 1 — 基础骨架**（v0.1）
   - [ ] pnpm + Turborepo monorepo 初始化
   - [ ] 共享 TypeScript 类型定义（物品、配方、模组、材质）
   - [ ] 数据库 Schema 设计（Drizzle ORM，7 张表）
   - [ ] Fastify 基础路由框架
   - [ ] React + Vite 前端脚手架
-- [ ] **阶段 2**: 功能增强 (2周)
-  - [ ] 批量处理支持
-  - [ ] 多 LLM 提供商支持（OpenAI/Anthropic/自定义）
-  - [ ] 交互审核界面
-  - [ ] 多格式输出（KubeJS JSON/Script、Datapack）
-  - [ ] 转换历史记录系统
-  - [ ] 可疑配方标记
-- [ ] **阶段 3**: 优化与扩展 (1-2周)
-  - [ ] Prompt 优化（Few-shot learning）
-  - [ ] 响应缓存机制
-  - [ ] 并行处理优化
-  - [ ] 数据分析工具
-  - [ ] 成本跟踪
-- [ ] **未来**: 规则引擎集成
-  - [ ] 历史数据分析
-  - [ ] 规则提取算法
-  - [ ] 混合架构实现
-  - [ ] 性能优化
+- [ ] **阶段 2 — 数据入库**（v0.2）
+  - [ ] JAR 解析引擎（lang / textures / recipes / tags 三重策略）
+  - [ ] 材质提取与 jimp 处理
+  - [ ] Minecraft 原版种子数据内置
+  - [ ] 模组管理 API
+- [ ] **阶段 3 — 可视化 UI**（v0.3）
+  - [ ] 物品图标组件（ItemIcon）
+  - [ ] 配方槽位组件（RecipeSlot / RecipeGrid）
+  - [ ] ModManager 页面
+  - [ ] ItemBrowser 页面
+  - [ ] RecipeBrowser 页面 + 基础配方编辑器
+- [ ] **阶段 4 — AI 辅助**（v0.4）
+  - [ ] 多提供商 LLM 客户端（Ollama / OpenAI / Anthropic）
+  - [ ] 数据库驱动的 Prompt 构建（注入物品上下文）
+  - [ ] 批量转换工作流
+  - [ ] 交互审核界面 + 置信度可视化
+- [ ] **阶段 5 — 导出与完善**（v0.5）
+  - [ ] KubeJS / Datapack 导出引擎
+  - [ ] 转换历史记录
+  - [ ] 规则引擎雏形
+- [ ] **未来规划**：附魔魔改、战利品表编辑、标签管理、整合包版本管理
 
 ### 🎯 目标用户
 
-- 整合包开发者
-- 具有基本计算机知识
-- 熟悉 KubeJS/CraftTweaker
-- 需要频繁交互批处理配方
+- 整合包开发者（主要用户）
+- 模组包作者，需要跨模组统一配方风格
+- 服务器管理员，需要快速调整游戏内配方平衡
+- 不熟悉代码但想进行配方魔改的玩家
 
 ### 🤝 贡献指南
 
@@ -185,21 +200,20 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 ### 🎯 Overview
 
-**Delightify** solves the common modpack development problem where different mods add similar items with incompatible crafting methods, breaking immersion.
+Modpack developers face many pain points when modifying recipes: looking up item IDs in documentation, writing JSON blindly without visual preview, dealing with different recipe formats across mods, and lacking visual tools to manage large numbers of recipes.
 
-Using **LLM-driven** intelligent conversion, it automatically generates unified recipe compatibility scripts through semantic understanding, while accumulating conversion data to build future rule engines.
+**Delightify** is a **visual recipe modification workbench** built for modpack developers. By importing mod JAR files, it automatically parses and builds a **local knowledge database** of items, recipes, textures, and translations. It provides a **visual recipe editor** with drag-and-drop operations, real-time item icon rendering, and WYSIWYG editing. Built-in **AI assistance** (optional) provides intelligent suggestions for bulk migration scenarios, while users always retain full control over final decisions. Supports export to KubeJS, Datapack, and other mainstream formats, with future plans to expand to enchantments, loot tables, and more.
 
 ### ✨ Features
 
-- 🤖 **LLM-Driven**: Supports local models (Ollama) and online APIs (OpenAI/Anthropic/Custom endpoints)
-- 📥 **Flexible Input**: Upload mod JAR files to automatically parse items, recipes, textures and translations
-- 🗄️ **Knowledge Database**: Maintains vanilla and mod items, recipes, textures, and translations, auto-parsed from JARs
-- 📤 **Multi-format Output**: KubeJS JSON/Script, Datapack format
-- 🎯 **Smart Marking**: Automatically marks low-confidence recipes for manual review
-- 💾 **Data Accumulation**: Records conversion history (LLM recommendations, user actions, final results) for future rule engine
-- 🔧 **Highly Customizable**: Recipe type metadata fully extensible, supports any mod
-- 💻 **Web Interface**: React + Node.js local WebUI with real-time preview and visual editing
-- 🔌 **Fully Offline**: Supports Ollama local models, no internet required
+- 🗄️ **Mod Knowledge Base**: Import mod JARs, auto-parse and persist items/recipes/textures/translations into a local database
+- 🎨 **Visual Recipe Editor**: Drag-and-drop operation, real-time item icon rendering, visual presentation of 3×3 crafting table, cooking pot, and more
+- 🔍 **Item Browser**: Filter by mod/category/tag, display texture icons, quickly locate target items
+- 🤖 **AI-Assisted Conversion** (optional): For bulk migration scenarios, supports LLM recipe type suggestions with confidence scoring and manual review
+- 📤 **Multi-format Export**: KubeJS Script/JSON, vanilla Datapack, one-click script generation
+- 🔧 **Highly Extensible**: Recipe type definitions fully customizable, supports any mod's recipe format
+- 🔌 **Fully Local**: Local WebUI, SQLite storage, offline support, optional Ollama integration
+- 📦 **Vanilla Data Built-in**: Pre-loaded Minecraft vanilla items and recipes, ready out of the box
 
 ### 🚀 Quick Start
 
@@ -221,6 +235,43 @@ pnpm dev
 
 Visit http://localhost:3000 to start!
 
+### 📖 Typical Workflow
+
+**Step 1: Import Mod JAR**
+```
+→ Auto-parse farmersdelight-1.20.jar
+→ Detected 127 items, 89 recipes, 341 textures
+```
+
+**Step 2: Browse Item Library**
+Search for "tomato" in the Item Browser to see:
+- 16×16 texture icon for tomato
+- All recipes that use tomato as an ingredient
+- Item tags for tomato (forge:vegetables, etc.)
+
+**Step 3: Visual Recipe Editing**
+Open the "Tomato Soup" recipe, drag and drop ingredients in the 3×3 grid, and preview the generated KubeJS code in real time:
+```javascript
+ServerEvents.recipes(event => {
+  event.custom({
+    type: 'farmersdelight:cooking',
+    ingredients: [
+      {item: 'farmersdelight:tomato'},
+      {item: 'minecraft:bowl'}
+    ],
+    result: {item: 'farmersdelight:tomato_soup'},
+    cookingtime: 200,
+    experience: 0.35
+  });
+});
+```
+
+**Step 4 (Optional): AI-Assisted Bulk Conversion**
+Upload legacy modpack recipe JSON → AI suggests conversion to farmersdelight:cooking → Review each entry and confirm with one click
+
+**Step 5: Export**
+Generate a complete KubeJS script and place it directly in your modpack's kubejs/server_scripts/ directory
+
 ### 📚 Documentation
 
 - 📘 [System Architecture Design](docs/architecture.md) - Original system design and workflow (historical reference)
@@ -229,32 +280,73 @@ Visit http://localhost:3000 to start!
 - ⚙️ [Configuration Guide](docs/configuration.md) - LLM config, recipe type metadata, output options
 - 📋 [Data Format Specification](docs/data-formats.md) - Complete specification for input/output formats
 
-### 📊 Architecture
+### 🏗️ Architecture
 
-**Current Stage: LLM-Driven (100%)**
 ```
-User Upload → Parse → LLM Conversion → Smart Marking → Interactive Review → Output
-    ↓
-Fast, intelligent, explainable
-Automatically accumulate conversion data
+┌─────────────────────────────────────────────────────┐
+│                     Delightify                       │
+│                                                     │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐ │
+│  │  Mod Manager │  │Visual Editor │  │AI Assistant│ │
+│  │             │  │              │  │ (Optional) │ │
+│  │  JAR Parser │  │ Recipe Slots │  │LLM Suggest │ │
+│  │  Textures   │  │  Item D&D    │  │Bulk Convert│ │
+│  │ Translations│  │ Live Preview │  │Review Flow │ │
+│  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘ │
+│         │                │                │         │
+│         └────────────────┴────────────────┘         │
+│                          │                          │
+│                          ▼                          │
+│              ┌───────────────────────┐              │
+│              │  Local Knowledge DB   │              │
+│              │Items·Recipes·Textures │              │
+│              └───────────┬───────────┘              │
+│                          │                          │
+│                          ▼                          │
+│              ┌───────────────────────┐              │
+│              │    Export Engine      │              │
+│              │  KubeJS · Datapack   │              │
+│              └───────────────────────┘              │
+└─────────────────────────────────────────────────────┘
 ```
 
-**Future Plan: Hybrid Architecture**
-```
-Rule Engine (80%) → Local LLM (15%) → Manual Review (5%)
-    ↓                ↓                  ↓
-Very Fast          Fast               Accurate
-Deterministic    Smart Reasoning    Edge Cases
-```
+### 🛣️ Roadmap
 
-Through accumulated conversion history data, the system will gradually build a rule engine, achieving a smooth transition from fully LLM-driven to hybrid architecture.
+- [x] **Phase 0**: Project planning and architecture design (tech stack, database design, documentation)
+- [ ] **Phase 1 — Foundation** (v0.1)
+  - [ ] pnpm + Turborepo monorepo initialization
+  - [ ] Shared TypeScript type definitions (items, recipes, mods, textures)
+  - [ ] Database schema design (Drizzle ORM, 7 tables)
+  - [ ] Fastify base routing framework
+  - [ ] React + Vite frontend scaffold
+- [ ] **Phase 2 — Data Ingestion** (v0.2)
+  - [ ] JAR parsing engine (lang / textures / recipes / tags triple strategy)
+  - [ ] Texture extraction and jimp processing
+  - [ ] Minecraft vanilla seed data built-in
+  - [ ] Mod management API
+- [ ] **Phase 3 — Visual UI** (v0.3)
+  - [ ] Item icon component (ItemIcon)
+  - [ ] Recipe slot component (RecipeSlot / RecipeGrid)
+  - [ ] ModManager page
+  - [ ] ItemBrowser page
+  - [ ] RecipeBrowser page + basic recipe editor
+- [ ] **Phase 4 — AI Assistance** (v0.4)
+  - [ ] Multi-provider LLM client (Ollama / OpenAI / Anthropic)
+  - [ ] Database-driven prompt construction (inject item context)
+  - [ ] Bulk conversion workflow
+  - [ ] Interactive review interface + confidence visualization
+- [ ] **Phase 5 — Export & Polish** (v0.5)
+  - [ ] KubeJS / Datapack export engine
+  - [ ] Conversion history
+  - [ ] Rule engine prototype
+- [ ] **Future**: Enchantment modding, loot table editing, tag management, modpack version management
 
 ### 🎯 Target Users
 
-- Modpack developers
-- Basic computer knowledge
-- Familiar with KubeJS/CraftTweaker
-- Need frequent interactive batch processing
+- Modpack developers (primary users)
+- Mod pack authors who need to unify recipe styles across mods
+- Server administrators who need to quickly adjust in-game recipe balance
+- Players who want to modify recipes without writing code
 
 ### 🤝 Contributing
 
