@@ -19,12 +19,13 @@
 ### ✨ 核心特性
 
 - 🤖 **LLM 驱动**: 支持本地模型（Ollama）和在线 API（OpenAI/Anthropic/自定义端点）
-- 📥 **灵活输入**: JSON 文件上传或 KubeJS 脚本解析，支持批量导入
+- 📥 **灵活输入**: 上传模组 JAR 文件，自动解析物品、配方、材质与翻译数据
+- 🗄️ **知识数据库**: 维护原版与模组的物品、配方、材质、翻译数据，从 JAR 自动解析
 - 📤 **多格式输出**: KubeJS JSON/Script、Datapack 格式，满足不同需求
 - 🎯 **智能标记**: 自动标记低置信度配方，需要人工审核
 - 💾 **数据积累**: 记录转换历史（LLM 推荐、用户操作、最终结果），为未来规则引擎做准备
 - 🔧 **高度可定制**: 配方类型元数据完全可扩展，支持任意模组
-- 💻 **Web 界面**: 基于 Gradio 的友好交互界面，支持实时预览和编辑
+- 💻 **Web 界面**: 基于 React + Node.js 的本地 WebUI，支持实时预览和可视化编辑
 - 🔌 **完全离线**: 支持 Ollama 本地模型，无需联网
 
 ### 🚀 快速开始
@@ -36,8 +37,8 @@
 git clone https://github.com/Aero-Seira/Delightify.git
 cd Delightify
 
-# 安装依赖
-pip install -r requirements.txt
+# 安装依赖（需要 Node.js 18+ 和 pnpm）
+pnpm install
 
 # (推荐) 安装本地模型支持
 # 安装 ollama: https://ollama.ai
@@ -68,11 +69,11 @@ ollama pull qwen2.5:7b
 #### 运行
 
 ```bash
-# 启动 Web UI
-python run.py
+# 启动开发服务器（前端 + 后端同时启动）
+pnpm dev
 ```
 
-访问 http://localhost:7860 开始使用！
+访问 http://localhost:3000 开始使用！
 
 ### 📖 使用示例
 
@@ -106,7 +107,9 @@ ServerEvents.recipes(event => {
 
 ### 📚 文档链接
 
-- 📘 [系统架构设计](docs/architecture.md) - 详细的系统设计和工作流程
+- 📘 [系统架构设计](docs/architecture.md) - 原始系统设计和工作流程（历史参考）
+- 📐 [技术栈决策](docs/tech-stack.md) - 技术选型决策记录与 ADR
+- 🗂️ [项目结构](docs/project-structure.md) - monorepo 结构、数据库 Schema、API 设计
 - ⚙️ [配置指南](docs/configuration.md) - LLM 配置、配方类型元数据、输出选项
 - 📋 [数据格式规范](docs/data-formats.md) - 输入输出格式的完整规范
 
@@ -136,13 +139,12 @@ ServerEvents.recipes(event => {
   - [x] 项目结构搭建
   - [x] 架构文档编写
   - [x] 配置系统设计
-- [ ] **阶段 1**: MVP 实现 (2-3周)
-  - [ ] 输入解析器（JSON + KubeJS）
-  - [ ] Ollama 集成
-  - [ ] Prompt 模板系统
-  - [ ] 基础 Gradio UI
-  - [ ] 单配方转换流程
-  - [ ] 配方类型元数据加载
+- [ ] **阶段 1**: 基础骨架（Milestone: v0.1）
+  - [ ] pnpm + Turborepo monorepo 初始化
+  - [ ] 共享 TypeScript 类型定义（物品、配方、模组、材质）
+  - [ ] 数据库 Schema 设计（Drizzle ORM，7 张表）
+  - [ ] Fastify 基础路由框架
+  - [ ] React + Vite 前端脚手架
 - [ ] **阶段 2**: 功能增强 (2周)
   - [ ] 批量处理支持
   - [ ] 多 LLM 提供商支持（OpenAI/Anthropic/自定义）
@@ -190,12 +192,13 @@ Using **LLM-driven** intelligent conversion, it automatically generates unified 
 ### ✨ Features
 
 - 🤖 **LLM-Driven**: Supports local models (Ollama) and online APIs (OpenAI/Anthropic/Custom endpoints)
-- 📥 **Flexible Input**: JSON file upload or KubeJS script parsing, supports batch import
+- 📥 **Flexible Input**: Upload mod JAR files to automatically parse items, recipes, textures and translations
+- 🗄️ **Knowledge Database**: Maintains vanilla and mod items, recipes, textures, and translations, auto-parsed from JARs
 - 📤 **Multi-format Output**: KubeJS JSON/Script, Datapack format
 - 🎯 **Smart Marking**: Automatically marks low-confidence recipes for manual review
 - 💾 **Data Accumulation**: Records conversion history (LLM recommendations, user actions, final results) for future rule engine
 - 🔧 **Highly Customizable**: Recipe type metadata fully extensible, supports any mod
-- 💻 **Web Interface**: User-friendly Gradio-based UI with real-time preview and editing
+- 💻 **Web Interface**: React + Node.js local WebUI with real-time preview and visual editing
 - 🔌 **Fully Offline**: Supports Ollama local models, no internet required
 
 ### 🚀 Quick Start
@@ -205,22 +208,24 @@ Using **LLM-driven** intelligent conversion, it automatically generates unified 
 git clone https://github.com/Aero-Seira/Delightify.git
 cd Delightify
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (requires Node.js 18+ and pnpm)
+pnpm install
 
 # (Recommended) Install local model support
 # Install Ollama: https://ollama.ai
 ollama pull qwen2.5:7b
 
-# Run Web UI
-python run.py
+# Start development server (frontend + backend)
+pnpm dev
 ```
 
-Visit http://localhost:7860 to start!
+Visit http://localhost:3000 to start!
 
 ### 📚 Documentation
 
-- 📘 [System Architecture Design](docs/architecture.md) - Detailed system design and workflow
+- 📘 [System Architecture Design](docs/architecture.md) - Original system design and workflow (historical reference)
+- 📐 [Tech Stack Decisions](docs/tech-stack.md) - Technology selection decisions and ADRs
+- 🗂️ [Project Structure](docs/project-structure.md) - Monorepo structure, database schema, API design
 - ⚙️ [Configuration Guide](docs/configuration.md) - LLM config, recipe type metadata, output options
 - 📋 [Data Format Specification](docs/data-formats.md) - Complete specification for input/output formats
 
