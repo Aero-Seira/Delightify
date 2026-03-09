@@ -4,6 +4,20 @@
 
 ---
 
+> ## ⚠️ 架构变更说明 / Architecture Change Notice
+>
+> **中文**：本文档为原始架构设计，反映项目初期基于 Python + Gradio 的技术思路。当前实际技术栈和架构已按以下文档更新，原文档中的 Python 相关内容作为历史参考保留，不删除。
+>
+> - 📐 [技术栈决策文档](tech-stack.md) — 从 Python/Gradio 迁移到 Node.js/React 的完整决策记录
+> - 🗂️ [项目结构文档](project-structure.md) — 新的 monorepo 目录结构、数据库 Schema 与 API 设计
+>
+> **English**: This document reflects the original architecture based on Python + Gradio. The current technology stack and architecture have been updated per the documents below. Python-related content in this document is retained as historical reference and has not been deleted.
+>
+> - 📐 [Tech Stack Decisions](tech-stack.md) — Complete decision record for the migration from Python/Gradio to Node.js/React
+> - 🗂️ [Project Structure](project-structure.md) — New monorepo directory structure, database schema, and API design
+
+---
+
 ## 中文
 
 ### 概述
