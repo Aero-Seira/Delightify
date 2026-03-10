@@ -14,7 +14,7 @@ delightify/                          # 项目根目录
 │   ├── workflows/                   # CI/CD（类型检查、构建验证）
 │   └── ISSUE_TEMPLATE/              # Issue 模板
 ├── packages/
-│   ├── shared/                      # 前后端共享代码包
+│   ├── shared/                      # 主进程与渲染进程共享代码包
 │   │   ├── package.json             # name: @delightify/shared
 │   │   └── src/
 │   │       ├── types/               # 共享 TypeScript 类型定义
@@ -26,45 +26,45 @@ delightify/                          # 项目根目录
 │   │       │   └── index.ts         # 统一导出
 │   │       └── constants/           # 共享常量（Minecraft 版本、默认配置等）
 │   │
-│   ├── backend/                     # Node.js 后端
-│   │   ├── package.json             # name: @delightify/backend
+│   ├── main/                        # Electron 主进程（原 backend）
+│   │   ├── package.json             # name: @delightify/main
 │   │   └── src/
-│   │       ├── main.ts              # Fastify 入口，启动服务并打开浏览器
-│   │       ├── jar-parser/          # JAR 文件解析引擎
-│   │       │   ├── index.ts         # 入口，协调解析流程
-│   │       │   ├── zip-reader.ts    # ZIP/JAR 文件读取（adm-zip）
-│   │       │   ├── recipe-parser.ts # 解析 data/<mod>/recipes/
-│   │       │   ├── lang-parser.ts   # 解析 assets/<mod>/lang/
-│   │       │   ├── texture-parser.ts# 解析 assets/<mod>/textures/item/（jimp 处理）
-│   │       │   ├── tag-parser.ts    # 解析 data/<mod>/tags/items/
-│   │       │   └── item-resolver.ts # 三重策略合并，生成物品 ID 列表
-│   │       ├── database/            # 数据库层（Drizzle ORM）
-│   │       │   ├── schema.ts        # 数据库 Schema 定义（全部表结构）
-│   │       │   ├── client.ts        # libsql 连接管理
-│   │       │   ├── migrations/      # 数据库迁移文件
-│   │       │   └── repositories/    # 数据访问对象
-│   │       │       ├── mod.repo.ts
-│   │       │       ├── item.repo.ts
-│   │       │       ├── recipe.repo.ts
-│   │       │       └── texture.repo.ts
-│   │       ├── llm/                 # LLM 集成层
-│   │       │   ├── providers/       # 多提供商支持
-│   │       │   │   ├── ollama.ts
-│   │       │   │   ├── openai.ts
-│   │       │   │   └── anthropic.ts
-│   │       │   ├── prompt-builder.ts# 动态 Prompt 构建（注入数据库物品信息）
-│   │       │   └── converter.ts     # 配方转换核心逻辑
-│   │       ├── routes/              # Fastify 路由
-│   │       │   ├── mods.ts          # /api/mods - 模组管理
-│   │       │   ├── items.ts         # /api/items - 物品查询
-│   │       │   ├── recipes.ts       # /api/recipes - 配方 CRUD
-│   │       │   ├── textures.ts      # /api/textures/:path - 材质服务
-│   │       │   └── llm.ts           # /api/llm - LLM 转换接口（WebSocket）
-│   │       └── utils/               # 工具函数
+│   │       ├── main.ts              # Electron 入口，创建 BrowserWindow
+│   │       ├── ipc/                 # IPC 处理器（替代 Fastify routes）
+│   │       │   ├── index.ts         # 注册所有 IPC handler
+│   │       │   ├── project.ts       # project:* channels（项目管理）
+│   │       │   ├── jar.ts           # jar:* channels（JAR 导入）
+│   │       │   ├── items.ts         # items:* channels（物品查询）
+│   │       │   ├── recipes.ts       # recipes:* channels（配方 CRUD）
+│   │       │   ├── textures.ts      # textures:* channels（材质服务）
+│   │       │   └── llm.ts           # llm:* channels（LLM 转换，支持进度推送）
+│   │       ├── services/            # 业务逻辑（原 backend/src/services）
+│   │       │   ├── jar-parser/      # JAR 文件解析引擎（不变）
+│   │       │   │   ├── index.ts
+│   │       │   │   ├── zip-reader.ts
+│   │       │   │   ├── recipe-parser.ts
+│   │       │   │   ├── lang-parser.ts
+│   │       │   │   ├── texture-parser.ts
+│   │       │   │   ├── tag-parser.ts
+│   │       │   │   └── item-resolver.ts
+│   │       │   ├── database/        # 数据库层，Drizzle ORM（不变）
+│   │       │   │   ├── schema.ts
+│   │       │   │   ├── client.ts
+│   │       │   │   ├── migrations/
+│   │       │   │   └── repositories/
+│   │       │   └── llm/             # LLM 集成层（不变）
+│   │       │       ├── providers/
+│   │       │       ├── prompt-builder.ts
+│   │       │       └── converter.ts
+│   │       ├── fs/                  # 文件系统操作（新增）
+│   │       │   ├── paths.ts         # 全局路径定义（对应 PCL2CE Paths.cs）
+│   │       │   ├── project-manager.ts  # 项目注册表管理
+│   │       │   └── modpack-fs.ts    # 整合包文件读写（kubejs/mods/config）
+│   │       └── preload.ts           # Electron preload 脚本（暴露 IPC API 给渲染进程）
 │   │
-│   └── frontend/                    # React 前端
-│       ├── package.json             # name: @delightify/frontend
-│       ├── vite.config.ts           # Vite 配置（代理到 backend:3000）
+│   └── renderer/                    # Electron 渲染进程（原 frontend）
+│       ├── package.json             # name: @delightify/renderer
+│       ├── vite.config.ts           # Vite 配置（开发模式热重载）
 │       └── src/
 │           ├── main.tsx             # React 入口
 │           ├── App.tsx              # 路由配置
@@ -75,25 +75,75 @@ delightify/                          # 项目根目录
 │           │   ├── ItemSearch/      # 物品搜索选择器
 │           │   └── ConfidenceBadge/ # LLM 置信度标记
 │           ├── pages/               # 页面级组件
-│           │   ├── ModManager/      # 模组管理（上传 JAR、查看解析状态）
+│           │   ├── ModManager/      # 模组管理（选择 JAR、查看解析状态）
 │           │   ├── ItemBrowser/     # 物品浏览器（带材质、搜索、过滤）
 │           │   ├── RecipeBrowser/   # 配方浏览器（可视化槽位展示）
 │           │   ├── RecipeEditor/    # 配方编辑器（可视化操作）
 │           │   └── ConversionTool/  # LLM 转换工具（审核工作流）
 │           ├── stores/              # 状态管理（Zustand 或 Jotai）
 │           ├── hooks/               # 自定义 Hook
-│           └── api/                 # 后端 API 调用封装
-│
-├── data/                            # 运行时数据目录（gitignore）
-│   ├── delightify.db                # SQLite 数据库
-│   └── textures/                    # 提取的材质文件
-│       ├── minecraft/item/
-│       └── <modid>/item/
+│           └── ipc/                 # IPC 调用封装（替代原 api/ 目录）
 │
 ├── pnpm-workspace.yaml              # pnpm workspace 配置
 ├── turbo.json                       # Turborepo 构建编排
 ├── package.json                     # 根 package（全局脚本）
 └── tsconfig.base.json               # 共享 TypeScript 基础配置
+```
+
+---
+
+### 路径体系（对应 PCL2CE `Paths.cs`）
+
+Electron 三层路径体系，各层职责独立，互不耦合：
+
+```
+[应用数据层] app.getPath('userData')  →  系统标准路径（Windows: %AppData%\Delightify）
+  ├── global.db                        # 全局 SQLite 知识库（跨项目共享）
+  ├── projects.json                    # 已注册项目路径列表（对应 PCL2CE Folders）
+  └── cache/                           # 材质缓存、HTTP 响应缓存
+
+[项目数据层] <modpack_root>/.delightify/  →  跟随整合包走，可 Git 管理
+  ├── project.json                     # 项目元数据（名称、MC版本、模组加载器、路径配置）
+  ├── project.db                       # 项目级 SQLite（配方历史、转换记录）
+  └── snapshots/                       # 脚本导出快照
+
+[整合包文件层] <modpack_root>/         →  直接读写，不复制不镜像
+  ├── kubejs/                          # KubeJS 脚本目录（Delightify 直接输出到此）
+  ├── mods/                            # 模组 JAR 文件（只读，用于导入知识库）
+  └── config/                          # 模组配置文件
+```
+
+---
+
+### 项目（Project）数据结构
+
+`.delightify/project.json` 的完整 schema：
+
+```typescript
+interface DelightifyProject {
+  version: "1.0";
+  name: string;                        // 项目显示名（如"ATM9整合包"）
+  mcVersion: string;                   // "1.20.1"
+  modLoader: "forge" | "fabric" | "neoforge" | "quilt";
+
+  paths: {
+    root: string;                      // 整合包根目录（绝对路径）
+    kubejs?: string;                   // 可覆盖，默认 root/kubejs
+    mods?: string;                     // 可覆盖，默认 root/mods
+    config?: string;                   // 可覆盖，默认 root/config
+  };
+
+  importedMods: Array<{                // 已导入知识库的模组列表
+    modId: string;
+    version: string;
+    fileName: string;
+    jarHash: string;                   // SHA-256，用于检测 JAR 变更
+    importedAt: string;                // ISO 8601
+  }>;
+
+  createdAt: string;
+  lastOpenedAt: string;
+}
 ```
 
 ---
@@ -258,8 +308,8 @@ mods (1) ─────────── (N) items
          更新 mods.item_count / recipe_count
                  │
                  ▼
-         WebSocket 推送进度
-         → 前端 ModManager 页面
+         IPC 推送进度
+         → 渲染进程 ModManager 页面
 ```
 
 #### 三重物品 ID 提取策略详解
@@ -283,29 +333,53 @@ mods (1) ─────────── (N) items
 
 ---
 
-### API 路由设计
+### IPC 通信设计（替代原 REST + WebSocket API）
 
-#### REST 接口
+IPC channel 命名约定：`<domain>:<action>`
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | `/api/mods` | 获取已导入的模组列表 |
-| POST | `/api/mods/import` | 导入 JAR 文件（接受文件路径数组） |
-| GET | `/api/mods/:modId` | 获取单个模组详情 |
-| DELETE | `/api/mods/:modId` | 删除模组及其数据 |
-| GET | `/api/items` | 分页查询物品（支持 modId, category, search 过滤） |
-| GET | `/api/items/:itemId` | 获取单个物品详情（含翻译、标签、配方） |
-| GET | `/api/recipes` | 查询配方（支持 modId, typeId, itemId 过滤） |
-| GET | `/api/recipes/:recipeId` | 获取单个配方 |
-| GET | `/api/textures/*` | 静态材质文件服务 |
-| GET | `/api/recipe-types` | 获取所有配方类型 |
+#### 主要 IPC 通道
 
-#### WebSocket 接口
+```
+project:list          → 获取所有已注册项目
+project:open          → 打开/切换项目（调用原生文件选择器）
+project:create        → 在指定目录创建新项目
+project:get-current   → 获取当前项目信息
 
-| 路径 | 描述 |
-|------|------|
-| `WS /api/ws/import` | JAR 导入进度推送（实时更新解析状态） |
-| `WS /api/ws/convert` | LLM 转换流式输出（streaming response） |
+jar:import            → 导入 JAR 文件到知识库（支持进度推送 jar:import:progress）
+jar:list              → 列出当前项目已导入的 JAR
+
+items:query           → 查询物品（支持过滤、分页）
+items:get-texture     → 获取物品材质（返回 base64 或文件路径）
+
+recipes:list          → 列出配方
+recipes:create        → 创建配方
+recipes:update        → 更新配方
+recipes:delete        → 删除配方
+recipes:export        → 导出为 KubeJS/Datapack 格式
+
+llm:convert           → 启动 LLM 转换（异步，通过 llm:convert:progress 推送进度）
+llm:cancel            → 取消正在进行的转换
+```
+
+#### IPC 调用模式
+
+```
+渲染进程（React）                主进程（Node.js）
+      │                               │
+      │  ipcRenderer.invoke(           │
+      │    'items:query',             │
+      │    { search: 'tomato' }       │
+      │  )                            │
+      │──────────────────────────────►│
+      │                               │  调用 services/
+      │                               │  查询数据库
+      │◄──────────────────────────────│
+      │  { items: [...], total: 127 } │
+      │                               │
+
+// 进度推送（单向）
+主进程  ──── ipcMain.send('jar:import:progress', { percent: 45 }) ───► 渲染进程
+```
 
 ---
 
@@ -318,7 +392,7 @@ mods (1) ─────────── (N) items
   ├── 模组列表（已导入 / 未导入）
   ├── 导入流程
   │   ├── 文件选择（浏览本地 JAR）
-  │   ├── 解析进度条（WebSocket 实时推送）
+  │   ├── 解析进度条（IPC 实时推送）
   │   │   └── 分步骤：读取文件 → 解析物品 → 解析配方 → 提取材质
   │   └── 解析结果摘要（物品数、配方数、错误数）
   └── 模组详情面板
@@ -376,7 +450,7 @@ mods (1) ─────────── (N) items
 核心功能：
   ├── 批量上传待转换配方
   ├── LLM 转换
-  │   ├── 流式转换进度（WebSocket streaming）
+  │   ├── 流式转换进度（IPC 进度推送）
   │   └── 置信度可视化（ConfidenceBadge 组件）
   └── 审核工作流
       ├── 逐条审核（接受 / 拒绝 / 编辑）
@@ -393,8 +467,8 @@ mods (1) ─────────── (N) items
 - [ ] pnpm + Turborepo monorepo 初始化
 - [ ] `@delightify/shared` 类型定义（物品、配方、模组、材质）
 - [ ] 数据库 Schema 定义（Drizzle ORM，7 张表）
-- [ ] Fastify 基础路由框架（模组、物品、配方接口骨架）
-- [ ] React + Vite 前端脚手架
+- [ ] Electron 主进程 + IPC 框架搭建
+- [ ] React + Vite 渲染进程脚手架
 - [ ] CI/CD：GitHub Actions 类型检查 + 构建验证
 
 #### 阶段 2：数据入库（Milestone: v0.2）
@@ -404,13 +478,13 @@ mods (1) ─────────── (N) items
 - [ ] 材质提取（texture-parser，jimp 处理）
 - [ ] 翻译数据导入（中英文双语）
 - [ ] Minecraft 原版种子数据（内置原版物品/配方/材质）
-- [ ] WebSocket 进度推送
+- [ ] IPC 进度推送
 
 #### 阶段 3：可视化 UI（Milestone: v0.3）
 
 - [ ] ItemIcon 组件（16x16 材质渲染）
 - [ ] RecipeSlot / RecipeGrid 组件
-- [ ] ModManager 页面（上传 + 进度 + 详情）
+- [ ] ModManager 页面（选择 JAR + 进度 + 详情）
 - [ ] ItemBrowser 页面（网格 + 筛选 + 搜索）
 - [ ] RecipeBrowser 页面（按类型分组 + 可视化）
 
@@ -418,7 +492,7 @@ mods (1) ─────────── (N) items
 
 - [ ] 多提供商 LLM 客户端（Ollama / OpenAI / Anthropic）
 - [ ] Prompt 构建器（注入数据库物品信息、配方类型字段规格）
-- [ ] 流式转换（WebSocket streaming）
+- [ ] 流式转换（IPC 进度推送）
 - [ ] 转换审核工作流（逐条审核 + 置信度可视化）
 - [ ] KubeJS 代码生成与导出
 
@@ -434,7 +508,7 @@ delightify/                          # Project root
 │   ├── workflows/                   # CI/CD (type checking, build validation)
 │   └── ISSUE_TEMPLATE/              # Issue templates
 ├── packages/
-│   ├── shared/                      # Shared code package (frontend + backend)
+│   ├── shared/                      # Shared code package (main process + renderer process)
 │   │   ├── package.json             # name: @delightify/shared
 │   │   └── src/
 │   │       ├── types/               # Shared TypeScript type definitions
@@ -446,45 +520,45 @@ delightify/                          # Project root
 │   │       │   └── index.ts         # Unified exports
 │   │       └── constants/           # Shared constants (MC versions, defaults)
 │   │
-│   ├── backend/                     # Node.js backend
-│   │   ├── package.json             # name: @delightify/backend
+│   ├── main/                        # Electron main process (formerly backend)
+│   │   ├── package.json             # name: @delightify/main
 │   │   └── src/
-│   │       ├── main.ts              # Fastify entry point, starts server and opens browser
-│   │       ├── jar-parser/          # JAR file parsing engine
-│   │       │   ├── index.ts         # Entry, orchestrates parsing flow
-│   │       │   ├── zip-reader.ts    # ZIP/JAR file reading (adm-zip)
-│   │       │   ├── recipe-parser.ts # Parses data/<mod>/recipes/
-│   │       │   ├── lang-parser.ts   # Parses assets/<mod>/lang/
-│   │       │   ├── texture-parser.ts# Parses assets/<mod>/textures/item/ (jimp)
-│   │       │   ├── tag-parser.ts    # Parses data/<mod>/tags/items/
-│   │       │   └── item-resolver.ts # Triple-strategy merge, generates item ID list
-│   │       ├── database/            # Database layer (Drizzle ORM)
-│   │       │   ├── schema.ts        # Database schema definition (all tables)
-│   │       │   ├── client.ts        # libsql connection management
-│   │       │   ├── migrations/      # Database migration files
-│   │       │   └── repositories/    # Data access objects
-│   │       │       ├── mod.repo.ts
-│   │       │       ├── item.repo.ts
-│   │       │       ├── recipe.repo.ts
-│   │       │       └── texture.repo.ts
-│   │       ├── llm/                 # LLM integration layer
-│   │       │   ├── providers/       # Multi-provider support
-│   │       │   │   ├── ollama.ts
-│   │       │   │   ├── openai.ts
-│   │       │   │   └── anthropic.ts
-│   │       │   ├── prompt-builder.ts# Dynamic prompt building (injects DB item info)
-│   │       │   └── converter.ts     # Recipe conversion core logic
-│   │       ├── routes/              # Fastify routes
-│   │       │   ├── mods.ts          # /api/mods - mod management
-│   │       │   ├── items.ts         # /api/items - item queries
-│   │       │   ├── recipes.ts       # /api/recipes - recipe CRUD
-│   │       │   ├── textures.ts      # /api/textures/:path - texture serving
-│   │       │   └── llm.ts           # /api/llm - LLM conversion (WebSocket)
-│   │       └── utils/               # Utility functions
+│   │       ├── main.ts              # Electron entry point, creates BrowserWindow
+│   │       ├── ipc/                 # IPC handlers (replaces Fastify routes)
+│   │       │   ├── index.ts         # Registers all IPC handlers
+│   │       │   ├── project.ts       # project:* channels (project management)
+│   │       │   ├── jar.ts           # jar:* channels (JAR import)
+│   │       │   ├── items.ts         # items:* channels (item queries)
+│   │       │   ├── recipes.ts       # recipes:* channels (recipe CRUD)
+│   │       │   ├── textures.ts      # textures:* channels (texture serving)
+│   │       │   └── llm.ts           # llm:* channels (LLM conversion with progress push)
+│   │       ├── services/            # Business logic (formerly backend/src/services)
+│   │       │   ├── jar-parser/      # JAR file parsing engine (unchanged)
+│   │       │   │   ├── index.ts
+│   │       │   │   ├── zip-reader.ts
+│   │       │   │   ├── recipe-parser.ts
+│   │       │   │   ├── lang-parser.ts
+│   │       │   │   ├── texture-parser.ts
+│   │       │   │   ├── tag-parser.ts
+│   │       │   │   └── item-resolver.ts
+│   │       │   ├── database/        # Database layer, Drizzle ORM (unchanged)
+│   │       │   │   ├── schema.ts
+│   │       │   │   ├── client.ts
+│   │       │   │   ├── migrations/
+│   │       │   │   └── repositories/
+│   │       │   └── llm/             # LLM integration layer (unchanged)
+│   │       │       ├── providers/
+│   │       │       ├── prompt-builder.ts
+│   │       │       └── converter.ts
+│   │       ├── fs/                  # Filesystem operations (new)
+│   │       │   ├── paths.ts         # Global path definitions (corresponds to PCL2CE Paths.cs)
+│   │       │   ├── project-manager.ts  # Project registry management
+│   │       │   └── modpack-fs.ts    # Modpack file read/write (kubejs/mods/config)
+│   │       └── preload.ts           # Electron preload script (exposes IPC API to renderer)
 │   │
-│   └── frontend/                    # React frontend
-│       ├── package.json             # name: @delightify/frontend
-│       ├── vite.config.ts           # Vite config (proxy to backend:3000)
+│   └── renderer/                    # Electron renderer process (formerly frontend)
+│       ├── package.json             # name: @delightify/renderer
+│       ├── vite.config.ts           # Vite config (hot reload in dev mode)
 │       └── src/
 │           ├── main.tsx             # React entry point
 │           ├── App.tsx              # Route configuration
@@ -495,25 +569,75 @@ delightify/                          # Project root
 │           │   ├── ItemSearch/      # Item search selector
 │           │   └── ConfidenceBadge/ # LLM confidence indicator
 │           ├── pages/               # Page-level components
-│           │   ├── ModManager/      # Mod management (upload JAR, view parse status)
+│           │   ├── ModManager/      # Mod management (select JAR, view parse status)
 │           │   ├── ItemBrowser/     # Item browser (texture, search, filter)
 │           │   ├── RecipeBrowser/   # Recipe browser (visual slot display)
 │           │   ├── RecipeEditor/    # Recipe editor (visual editing)
 │           │   └── ConversionTool/  # LLM conversion tool (review workflow)
 │           ├── stores/              # State management (Zustand or Jotai)
 │           ├── hooks/               # Custom hooks
-│           └── api/                 # Backend API call wrappers
-│
-├── data/                            # Runtime data directory (gitignored)
-│   ├── delightify.db                # SQLite database
-│   └── textures/                    # Extracted texture files
-│       ├── minecraft/item/
-│       └── <modid>/item/
+│           └── ipc/                 # IPC call wrappers (replaces api/ directory)
 │
 ├── pnpm-workspace.yaml              # pnpm workspace config
 ├── turbo.json                       # Turborepo build orchestration
 ├── package.json                     # Root package (global scripts)
 └── tsconfig.base.json               # Shared TypeScript base config
+```
+
+---
+
+### Path System (corresponding to PCL2CE `Paths.cs`)
+
+Three-layer Electron path system — each layer has independent responsibilities, fully decoupled:
+
+```
+[App Data Layer]  app.getPath('userData')  →  OS standard path (Windows: %AppData%\Delightify)
+  ├── global.db                              # Global SQLite knowledge base (shared across projects)
+  ├── projects.json                          # Registered project path list (corresponds to PCL2CE Folders)
+  └── cache/                                 # Texture cache, HTTP response cache
+
+[Project Data Layer]  <modpack_root>/.delightify/  →  travels with the modpack, Git-manageable
+  ├── project.json                           # Project metadata (name, MC version, mod loader, path config)
+  ├── project.db                             # Project-level SQLite (recipe history, conversion records)
+  └── snapshots/                             # Script export snapshots
+
+[Modpack File Layer]  <modpack_root>/        →  direct read/write, no copy or mirror
+  ├── kubejs/                                # KubeJS script directory (Delightify outputs directly here)
+  ├── mods/                                  # Mod JAR files (read-only, used for knowledge base import)
+  └── config/                                # Mod configuration files
+```
+
+---
+
+### Project Data Structure
+
+Complete schema for `.delightify/project.json`:
+
+```typescript
+interface DelightifyProject {
+  version: "1.0";
+  name: string;                        // Project display name (e.g., "ATM9 Modpack")
+  mcVersion: string;                   // "1.20.1"
+  modLoader: "forge" | "fabric" | "neoforge" | "quilt";
+
+  paths: {
+    root: string;                      // Modpack root directory (absolute path)
+    kubejs?: string;                   // Override; defaults to root/kubejs
+    mods?: string;                     // Override; defaults to root/mods
+    config?: string;                   // Override; defaults to root/config
+  };
+
+  importedMods: Array<{                // List of mods imported into the knowledge base
+    modId: string;
+    version: string;
+    fileName: string;
+    jarHash: string;                   // SHA-256, used to detect JAR changes
+    importedAt: string;                // ISO 8601
+  }>;
+
+  createdAt: string;
+  lastOpenedAt: string;
+}
 ```
 
 ---
@@ -678,8 +802,8 @@ User uploads JAR file
          Update mods.item_count / recipe_count
                  │
                  ▼
-         WebSocket progress push
-         → Frontend ModManager page
+         IPC progress push
+         → Renderer ModManager page
 ```
 
 #### Triple Item ID Extraction Strategy Details
@@ -703,29 +827,53 @@ User uploads JAR file
 
 ---
 
-### API Route Design
+### IPC Communication Design (replaces REST + WebSocket API)
 
-#### REST Endpoints
+IPC channel naming convention: `<domain>:<action>`
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/mods` | Get list of imported mods |
-| POST | `/api/mods/import` | Import JAR files (accepts array of file paths) |
-| GET | `/api/mods/:modId` | Get single mod details |
-| DELETE | `/api/mods/:modId` | Delete mod and its data |
-| GET | `/api/items` | Paginated item query (supports modId, category, search filters) |
-| GET | `/api/items/:itemId` | Get single item details (with translations, tags, recipes) |
-| GET | `/api/recipes` | Query recipes (supports modId, typeId, itemId filters) |
-| GET | `/api/recipes/:recipeId` | Get single recipe |
-| GET | `/api/textures/*` | Static texture file serving |
-| GET | `/api/recipe-types` | Get all recipe types |
+#### Main IPC Channels
 
-#### WebSocket Endpoints
+```
+project:list          → Get all registered projects
+project:open          → Open/switch project (invokes native file picker)
+project:create        → Create new project in specified directory
+project:get-current   → Get current project info
 
-| Path | Description |
-|------|-------------|
-| `WS /api/ws/import` | JAR import progress push (real-time parse status updates) |
-| `WS /api/ws/convert` | LLM conversion streaming output |
+jar:import            → Import JAR file into knowledge base (supports progress push jar:import:progress)
+jar:list              → List JARs imported in current project
+
+items:query           → Query items (supports filtering, pagination)
+items:get-texture     → Get item texture (returns base64 or file path)
+
+recipes:list          → List recipes
+recipes:create        → Create recipe
+recipes:update        → Update recipe
+recipes:delete        → Delete recipe
+recipes:export        → Export to KubeJS/Datapack format
+
+llm:convert           → Start LLM conversion (async, pushes progress via llm:convert:progress)
+llm:cancel            → Cancel ongoing conversion
+```
+
+#### IPC Call Pattern
+
+```
+Renderer Process (React)            Main Process (Node.js)
+      │                                    │
+      │  ipcRenderer.invoke(               │
+      │    'items:query',                  │
+      │    { search: 'tomato' }            │
+      │  )                                 │
+      │───────────────────────────────────►│
+      │                                    │  calls services/
+      │                                    │  queries database
+      │◄───────────────────────────────────│
+      │  { items: [...], total: 127 }      │
+      │                                    │
+
+// Progress push (one-way)
+Main Process  ──── ipcMain.send('jar:import:progress', { percent: 45 }) ───► Renderer
+```
 
 ---
 
@@ -738,7 +886,7 @@ Core features:
   ├── Mod list (imported / not imported)
   ├── Import flow
   │   ├── File selection (browse local JAR)
-  │   ├── Parse progress bar (WebSocket real-time push)
+  │   ├── Parse progress bar (IPC real-time push)
   │   │   └── Steps: read file → parse items → parse recipes → extract textures
   │   └── Parse result summary (item count, recipe count, error count)
   └── Mod details panel
@@ -796,7 +944,7 @@ Core features:
 Core features:
   ├── Batch upload of recipes to convert
   ├── LLM conversion
-  │   ├── Streaming conversion progress (WebSocket streaming)
+  │   ├── Streaming conversion progress (IPC progress push)
   │   └── Confidence visualization (ConfidenceBadge component)
   └── Review workflow
       ├── Per-item review (accept / reject / edit)
@@ -813,8 +961,8 @@ Core features:
 - [ ] pnpm + Turborepo monorepo initialization
 - [ ] `@delightify/shared` type definitions (items, recipes, mods, textures)
 - [ ] Database schema definition (Drizzle ORM, 7 tables)
-- [ ] Fastify basic route framework (mod, item, recipe endpoint scaffolding)
-- [ ] React + Vite frontend scaffold
+- [ ] Electron main process + IPC framework setup
+- [ ] React + Vite renderer process scaffold
 - [ ] CI/CD: GitHub Actions type checking + build validation
 
 #### Phase 2: Data Ingestion (Milestone: v0.2)
@@ -824,13 +972,13 @@ Core features:
 - [ ] Texture extraction (texture-parser, jimp processing)
 - [ ] Translation data import (bilingual Chinese/English)
 - [ ] Minecraft vanilla seed data (built-in vanilla items/recipes/textures)
-- [ ] WebSocket progress push
+- [ ] IPC progress push
 
 #### Phase 3: Visual UI (Milestone: v0.3)
 
 - [ ] ItemIcon component (16x16 texture rendering)
 - [ ] RecipeSlot / RecipeGrid components
-- [ ] ModManager page (upload + progress + details)
+- [ ] ModManager page (select JAR + progress + details)
 - [ ] ItemBrowser page (grid + filters + search)
 - [ ] RecipeBrowser page (grouped by type + visual display)
 
@@ -838,6 +986,6 @@ Core features:
 
 - [ ] Multi-provider LLM client (Ollama / OpenAI / Anthropic)
 - [ ] Prompt builder (injects database item info, recipe type field specs)
-- [ ] Streaming conversion (WebSocket streaming)
+- [ ] Streaming conversion (IPC progress push)
 - [ ] Conversion review workflow (per-item review + confidence visualization)
 - [ ] KubeJS code generation and export
