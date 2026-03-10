@@ -27,15 +27,14 @@
 | 层级 | 选型 | 备选方案 | 选择理由 |
 |------|------|---------|---------|
 | 包管理 | pnpm + Turborepo | npm, yarn | monorepo 磁盘占用最优，幽灵依赖防护，硬链接缓存 |
-| 项目结构 | monorepo（packages/shared, backend, frontend） | 单仓库 | 前后端共享 TypeScript 类型，消除类型重复定义 |
+| 项目结构 | monorepo（packages/shared, main, renderer） | 单仓库 | 主进程与渲染进程共享 TypeScript 类型，消除类型重复定义 |
 | 后端运行时 | Node.js + TypeScript | Python, Java, Rust | LLM SDK 官方支持，前后端语言统一，单进程分发 |
-| 后端框架 | Fastify | Express, Hono | 性能优秀，TypeScript 原生支持，Schema 验证内置 |
 | 数据库 | SQLite via Drizzle ORM + libsql | PostgreSQL, better-sqlite3 | 零配置本地部署，libsql 无 Native Addon，类型安全 |
 | 图像处理 | jimp | sharp | 纯 JS 实现，无 Native Addon，避免打包复杂度 |
 | LLM 集成 | openai + ollama 官方 Node SDK | LangChain | 官方维护，功能完整，无需额外框架 |
 | 前端框架 | React + TypeScript + Vite | Vue, Svelte | 生态成熟，组件库丰富，Vite 构建速度快 |
-| UI 交互 | 本地 WebUI（浏览器访问 localhost） | Electron, Tauri, NiceGUI, Gradio | 开发体验最佳，未来可无缝升级为云端服务 |
-| 打包（备选）| Tauri + Node Sidecar | Electron, caxa | 体积最小（~70MB），原生窗口，复用现有后端代码 |
+| UI 交互 | **Electron + React** | 本地 WebUI、Tauri、NiceGUI | 原生桌面体验，无需浏览器，IPC 替代 HTTP，文件系统访问更直接 |
+| 后端框架 | ~~Fastify~~ → **Electron 主进程（IPC）** | Express, Fastify, Hono | Electron 环境下 IPC 比 HTTP 更高效，零端口冲突，无需网络栈 |
 
 ---
 
@@ -75,28 +74,57 @@ Node.js 无法在运行时访问 JVM 注册表，但通过以下三重策略可�
 
 ---
 
+### 参考设计：PCL2CE 的理念借鉴
+
+本项目在路径管理和状态管理上参考了 [PCL2CE（PCL 社区版）](https://github.com/PCL-Community/PCL-CE) 的设计理念：
+
+1. **多层路径分离**（对应 PCL2CE `Paths.cs`）：应用数据、项目数据、缓存三个独立路径体系，互不耦合，支持灵活部署和迁移
+2. **列表与当前选择解耦**（对应 PCL2CE `States.cs`）：项目注册表（持久化到 `projects.json`）与当前打开项目（运行时状态）分离，切换项目不影响注册表数据
+3. **实例配置随实例走**（对应 PCL2CE `Config.cs` 的 `ConfigSource.GameInstance`）：每个整合包项目有 `.delightify/` 目录存放项目级数据，项目可以独立迁移、备份、分享
+4. **自动发现 + 手动添加并存**：自动扫描常见路径（如整合包启动器目录），同时支持手动添加项目，兼顾便捷性与灵活性
+
+---
+
+### 放弃 Fastify WebUI 改用 Electron 的理由（ADR 风格）
+
+#### ADR-007: 放弃本地 WebUI，采用 Electron 桌面应用
+
+- **提案**：保留原有本地 WebUI 方案（Fastify + 浏览器访问 localhost）
+- **决策**：放弃，改用 Electron 桌面应用
+- **放弃本地 WebUI 的理由**：
+  - 需要用户手动打开浏览器，不符合 IDE 类工具的使用习惯
+  - 无法直接读写文件系统（受浏览器沙箱限制），JAR 导入需要绕行
+  - 端口冲突风险（3000 端口被其他程序占用时无法启动）
+  - 无法使用原生文件选择器、系统通知、任务栏集成等桌面 OS 特性
+- **选择 Electron 的理由**：
+  - IPC 原生通信，无需 HTTP 栈，零端口冲突，性能更高
+  - 直接调用 Node.js `fs` API 操作整合包文件，读写更高效
+  - 与桌面 OS 深度集成（原生文件选择器、系统通知、任务栏）
+  - 用户体验与 PCL2、HMCL 等整合包工具一致，目标用户更熟悉
+  - 现有 Node.js 后端逻辑 **100% 复用**，仅将 Fastify routes 替换为 IPC handlers
+
+---
+
 ### 前端方案演进路径
 
 ```
 阶段一（当前）                     阶段二（未来可选）
 ─────────────                     ────────────────
-本地 WebUI                         Tauri 桌面应用
-                                   
-Fastify 后端                       Fastify 后端（作为 Sidecar）
-    │ serve 静态文件                    │ 完全相同的代码
-    ↓                                  ↓
-React 前端                         React 前端（100% 复用）
-    │                                  │
-浏览器访问                         原生窗口（Tauri WebView）
-localhost:3000
+Electron 桌面应用                   可选支持 Web 模式
+
+主进程（Node.js）                   Fastify 后端（复用 services 层）
+    │ IPC                               │ HTTP
+    ↓                                   ↓
+渲染进程（React）                   React 前端（100% 复用）
+    │                                   │
+Electron 原生窗口                   浏览器访问 localhost
 ```
 
-两个阶段共享同一套代码库，阶段二迁移仅需：
-1. 安装 Tauri CLI
-2. 添加 `src-tauri/` 配置目录
-3. 将 Fastify 注册为 sidecar 进程
+两个阶段共享同一套 services 层代码，阶段二扩展仅需：
+1. 在 services 层之上添加 Fastify HTTP adapter
+2. 前端 IPC 调用改为 HTTP fetch（可通过抽象层统一）
 
-前端代码、后端逻辑、数据库 schema **0% 改动**。
+services 层代码（JAR 解析、数据库、LLM）**0% 改动**。
 
 ---
 
@@ -108,14 +136,14 @@ localhost:3000
 
 ```
 npm/yarn（复制模式）：
-  packages/backend/node_modules/typescript   (实际文件，15MB)
-  packages/frontend/node_modules/typescript  (实际文件，15MB)
+  packages/main/node_modules/typescript      (实际文件，15MB)
+  packages/renderer/node_modules/typescript  (实际文件，15MB)
   磁盘占用：30MB
 
 pnpm（硬链接模式）：
   ~/.pnpm-store/typescript@5.x/              (实际文件，15MB)
-  packages/backend/node_modules/typescript   (硬链接 → store)
-  packages/frontend/node_modules/typescript  (硬链接 → store)
+  packages/main/node_modules/typescript      (硬链接 → store)
+  packages/renderer/node_modules/typescript  (硬链接 → store)
   磁盘占用：15MB（节省 50%）
 ```
 
@@ -131,12 +159,12 @@ pnpm 使用符号链接隔离每个包的依赖，只有在 `package.json` 中�
 
 ```
 构建依赖关系：
-  @delightify/shared  →  @delightify/backend
-                      →  @delightify/frontend
+  @delightify/shared  →  @delightify/main
+                      →  @delightify/renderer
 
 Turborepo 保证：
-  1. shared 先于 backend 和 frontend 构建
-  2. backend 和 frontend 可以并行构建（互不依赖）
+  1. shared 先于 main 和 renderer 构建
+  2. main 和 renderer 可以并行构建（互不依赖）
   3. 增量构建缓存（未修改的包不重新构建）
 ```
 
@@ -181,14 +209,14 @@ Turborepo 保证：
   - 整合包 JAR 文件通常几十 GB，挂载到容器较为复杂
   - 本地 Node.js 运行零配置，无需额外基础设施
 
-#### ADR-005: 放弃 Electron
+#### ADR-005: 放弃本地 WebUI，采用 Electron
 
-- **提案**：使用 Electron 打包为桌面应用
-- **决策**：放弃（当前阶段），保留为未来可选方案
+- **提案**：使用本地 WebUI（Fastify + 浏览器访问 localhost）
+- **决策**：放弃本地 WebUI，改用 Electron（已更新决策，详见 ADR-007）
 - **理由**：
-  - 打包体积过大（~200MB），Chromium 捆绑是主要原因
-  - 当前阶段本地 WebUI 已满足需求
-  - 如需桌面应用，优先考虑 Tauri（~70MB）
+  - Electron 打包体积（~150MB）在整合包开发者群体中不构成障碍
+  - 直接文件系统访问、IPC 通信、桌面 OS 集成带来的体验提升远超体积成本
+  - Tauri 需要 Rust 知识，当前阶段不纳入考虑（可作为未来 v2 方案）
 
 #### ADR-006: 放弃纯云端 SaaS
 
@@ -224,15 +252,14 @@ The core driver for this change: the original approach lacked structured data su
 | Layer | Choice | Alternatives | Rationale |
 |-------|--------|-------------|-----------|
 | Package Management | pnpm + Turborepo | npm, yarn | Optimal monorepo disk usage, ghost dependency protection, hard-link cache |
-| Project Structure | monorepo (packages/shared, backend, frontend) | Single repo | Share TypeScript types between frontend/backend, eliminate type duplication |
+| Project Structure | monorepo (packages/shared, main, renderer) | Single repo | Share TypeScript types between main and renderer processes, eliminate type duplication |
 | Backend Runtime | Node.js + TypeScript | Python, Java, Rust | Official LLM SDK support, unified language stack, single-process distribution |
-| Backend Framework | Fastify | Express, Hono | Excellent performance, native TypeScript support, built-in schema validation |
 | Database | SQLite via Drizzle ORM + libsql | PostgreSQL, better-sqlite3 | Zero-config local deployment, no Native Addon in libsql, type-safe |
 | Image Processing | jimp | sharp | Pure JS implementation, no Native Addon, avoids bundling complexity |
 | LLM Integration | openai + ollama official Node SDK | LangChain | Officially maintained, feature-complete, no extra framework needed |
 | Frontend Framework | React + TypeScript + Vite | Vue, Svelte | Mature ecosystem, rich component libraries, fast Vite builds |
-| UI Interaction | Local WebUI (browser at localhost) | Electron, Tauri, NiceGUI, Gradio | Best developer experience, seamlessly upgradable to cloud service in future |
-| Packaging (optional) | Tauri + Node Sidecar | Electron, caxa | Smallest bundle (~70MB), native window, reuses existing backend code |
+| UI Interaction | **Electron + React** | Local WebUI, Tauri, NiceGUI | Native desktop experience, no browser needed, IPC replaces HTTP, direct filesystem access |
+| Backend Framework | ~~Fastify~~ → **Electron Main Process (IPC)** | Express, Fastify, Hono | IPC is more efficient than HTTP in Electron, zero port conflicts, no network stack needed |
 
 ---
 
@@ -272,28 +299,57 @@ After triple-merge deduplication, the remaining ~2% are purely internal items wi
 
 ---
 
+### Reference Design: Lessons from PCL2CE
+
+This project draws from the design philosophy of [PCL2CE (PCL Community Edition)](https://github.com/PCL-Community/PCL-CE) for path management and state management:
+
+1. **Multi-layer path separation** (corresponding to PCL2CE `Paths.cs`): Three independent path systems for app data, project data, and cache — fully decoupled, supporting flexible deployment and migration
+2. **List vs. current selection decoupled** (corresponding to PCL2CE `States.cs`): Project registry (persisted to `projects.json`) is separated from currently open project (runtime state), so switching projects doesn't affect the registry
+3. **Instance config travels with instance** (corresponding to PCL2CE `Config.cs` `ConfigSource.GameInstance`): Each modpack project has a `.delightify/` directory for project-level data, making projects independently migratable, backupable, and shareable
+4. **Auto-discovery + manual addition**: Automatically scans common paths (e.g., launcher directories), while also supporting manual project addition for both convenience and flexibility
+
+---
+
+### Rationale for Abandoning Fastify WebUI in Favor of Electron (ADR Style)
+
+#### ADR-007: Abandon Local WebUI, Adopt Electron Desktop Application
+
+- **Proposal**: Retain the original local WebUI approach (Fastify + browser at localhost)
+- **Decision**: Rejected; adopt Electron desktop application instead
+- **Reasons for abandoning local WebUI**:
+  - Requires users to manually open a browser — inconsistent with IDE-class tool UX expectations
+  - Cannot directly read/write the filesystem (browser sandbox limitations); JAR import requires workarounds
+  - Port conflict risk (startup fails if port 3000 is occupied by another process)
+  - Cannot use native file pickers, system notifications, taskbar integration, or other desktop OS features
+- **Reasons for choosing Electron**:
+  - Native IPC communication — no HTTP stack, zero port conflicts, higher performance
+  - Direct access to Node.js `fs` API for modpack file operations — more efficient reads and writes
+  - Deep desktop OS integration (native file picker, system notifications, taskbar)
+  - User experience consistent with tools like PCL2 and HMCL that the target audience is familiar with
+  - Existing Node.js backend logic is **100% reusable** — only replaces Fastify routes with IPC handlers
+
+---
+
 ### Frontend Evolution Path
 
 ```
 Phase 1 (Current)                  Phase 2 (Optional Future)
 ─────────────────                  ─────────────────────────
-Local WebUI                        Tauri Desktop App
+Electron Desktop App               Optional Web Mode
 
-Fastify Backend                    Fastify Backend (as Sidecar)
-    │ serve static files               │ identical code
-    ↓                                  ↓
-React Frontend                     React Frontend (100% reuse)
-    │                                  │
-Browser access                     Native window (Tauri WebView)
-localhost:3000
+Main Process (Node.js)             Fastify Backend (reuses services layer)
+    │ IPC                               │ HTTP
+    ↓                                   ↓
+Renderer Process (React)           React Frontend (100% reuse)
+    │                                   │
+Electron native window             Browser at localhost
 ```
 
-Both phases share the same codebase. Phase 2 migration only requires:
-1. Install Tauri CLI
-2. Add `src-tauri/` configuration directory
-3. Register Fastify as a sidecar process
+Both phases share the same services layer code. Phase 2 expansion only requires:
+1. Adding a Fastify HTTP adapter on top of the services layer
+2. Replacing IPC calls with HTTP fetch in the frontend (can be unified via an abstraction layer)
 
-Frontend code, backend logic, and database schema require **0% changes**.
+Services layer code (JAR parsing, database, LLM) requires **0% changes**.
 
 ---
 
@@ -305,14 +361,14 @@ Frontend code, backend logic, and database schema require **0% changes**.
 
 ```
 npm/yarn (copy mode):
-  packages/backend/node_modules/typescript   (actual file, 15MB)
-  packages/frontend/node_modules/typescript  (actual file, 15MB)
+  packages/main/node_modules/typescript      (actual file, 15MB)
+  packages/renderer/node_modules/typescript  (actual file, 15MB)
   Disk usage: 30MB
 
 pnpm (hard-link mode):
   ~/.pnpm-store/typescript@5.x/              (actual file, 15MB)
-  packages/backend/node_modules/typescript   (hard link → store)
-  packages/frontend/node_modules/typescript  (hard link → store)
+  packages/main/node_modules/typescript      (hard link → store)
+  packages/renderer/node_modules/typescript  (hard link → store)
   Disk usage: 15MB (50% savings)
 ```
 
@@ -328,12 +384,12 @@ pnpm uses symlinks to isolate each package's dependencies; only dependencies dec
 
 ```
 Build dependency graph:
-  @delightify/shared  →  @delightify/backend
-                      →  @delightify/frontend
+  @delightify/shared  →  @delightify/main
+                      →  @delightify/renderer
 
 Turborepo guarantees:
-  1. shared builds before backend and frontend
-  2. backend and frontend build in parallel (no mutual dependency)
+  1. shared builds before main and renderer
+  2. main and renderer build in parallel (no mutual dependency)
   3. Incremental build cache (unchanged packages skip rebuild)
 ```
 
@@ -378,14 +434,14 @@ Turborepo guarantees:
   - Modpack JAR files often reach tens of GB; mounting into containers is complex
   - Local Node.js runs with zero configuration, no extra infrastructure needed
 
-#### ADR-005: Reject Electron
+#### ADR-005: Abandon Local WebUI, Adopt Electron
 
-- **Proposal**: Package as desktop application using Electron
-- **Decision**: Rejected (current phase), retained as future optional
+- **Proposal**: Use local WebUI (Fastify + browser at localhost)
+- **Decision**: Rejected local WebUI; adopted Electron instead (decision updated, see ADR-007)
 - **Rationale**:
-  - Bundle too large (~200MB); Chromium bundling is the main reason
-  - Local WebUI already meets current-phase needs
-  - If desktop app is needed, prefer Tauri (~70MB)
+  - Electron bundle size (~150MB) is not a barrier for the modpack developer community
+  - The UX gains from direct filesystem access, IPC communication, and desktop OS integration far outweigh the size cost
+  - Tauri requires Rust knowledge, which is not currently feasible (may be revisited as a future v2 option)
 
 #### ADR-006: Reject Pure Cloud SaaS
 

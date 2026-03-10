@@ -23,7 +23,7 @@
 - 🤖 **AI 辅助转换**（可选功能）：对于批量迁移场景，支持 LLM 智能建议配方类型，提供置信度评分，人工审核确认
 - 📤 **多格式导出**：KubeJS Script/JSON、原版 Datapack，一键生成可用脚本
 - 🔧 **高度可扩展**：配方类型定义完全自定义，支持任意模组的任意配方格式
-- 🔌 **完全本地运行**：本地 WebUI，数据存储在本地 SQLite，支持离线使用，可选接入本地 Ollama 模型
+- 💻 **桌面客户端**: 基于 Electron + React 的本地桌面应用，原生文件系统访问，无需浏览器
 - 📦 **原版数据内置**：预置 Minecraft 原版全部物品与配方数据，开箱即用
 
 ### 🚀 快速开始
@@ -67,11 +67,11 @@ ollama pull qwen2.5:7b
 #### 运行
 
 ```bash
-# 启动开发服务器（前端 + 后端同时启动）
+# 启动 Electron 开发模式（前端热重载 + 主进程监听）
 pnpm dev
 ```
 
-访问 http://localhost:3000 开始使用！
+Electron 窗口将自动打开
 
 ### 📖 典型工作流
 
@@ -121,31 +121,36 @@ ServerEvents.recipes(event => {
 ### 🏗️ 项目架构
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     Delightify                       │
-│                                                     │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐ │
-│  │  模组管理    │  │  可视化编辑器  │  │  AI 辅助   │ │
-│  │             │  │              │  │  (可选)    │ │
-│  │  JAR 解析   │  │  配方槽位渲染  │  │  LLM 建议  │ │
-│  │  材质提取   │  │  物品拖拽操作  │  │  批量转换  │ │
-│  │  翻译导入   │  │  实时代码预览  │  │  审核工作流 │ │
-│  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘ │
-│         │                │                │         │
-│         └────────────────┴────────────────┘         │
-│                          │                          │
-│                          ▼                          │
-│              ┌───────────────────────┐              │
-│              │    本地知识数据库      │              │
-│              │  物品·配方·材质·翻译  │              │
-│              └───────────┬───────────┘              │
-│                          │                          │
-│                          ▼                          │
-│              ┌───────────────────────┐              │
-│              │       导出引擎        │              │
-│              │  KubeJS · Datapack   │              │
-│              └───────────────────────┘              │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│              Delightify（Electron）              │
+│                                                 │
+│  ┌───────────────────────────────────────────┐  │
+│  │           渲染进程（React UI）             │  │
+│  │  ModManager · ItemBrowser · RecipeEditor  │  │
+│  └────────────────┬──────────────────────────┘  │
+│                   │ IPC                         │
+│  ┌────────────────▼──────────────────────────┐  │
+│  │           主进程（Node.js）               │  │
+│  │  ┌─────────┐ ┌──────────────┐ ┌────────┐ │  │
+│  │  │模组管理  │ │  可视化编辑  │ │AI 辅助 │ │  │
+│  │  │JAR 解析  │ │  配方槽位   │ │LLM建议 │ │  │
+│  │  │材质提取  │ │  实时预览   │ │批量转换│ │  │
+│  │  └────┬────┘ └──────┬───────┘ └───┬────┘ │  │
+│  │       └─────────────┴─────────────┘      │  │
+│  │                     │                    │  │
+│  │                     ▼                    │  │
+│  │       ┌─────────────────────────┐        │  │
+│  │       │     本地知识数据库      │        │  │
+│  │       │ 物品·配方·材质·翻译    │        │  │
+│  │       └────────────┬────────────┘        │  │
+│  │                    │                     │  │
+│  │                    ▼                     │  │
+│  │       ┌─────────────────────────┐        │  │
+│  │       │       导出引擎          │        │  │
+│  │       │   KubeJS · Datapack    │        │  │
+│  │       └─────────────────────────┘        │  │
+│  └───────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────┘
 ```
 
 ### 🛣️ 开发路线图
@@ -155,8 +160,8 @@ ServerEvents.recipes(event => {
   - [ ] pnpm + Turborepo monorepo 初始化
   - [ ] 共享 TypeScript 类型定义（物品、配方、模组、材质）
   - [ ] 数据库 Schema 设计（Drizzle ORM，7 张表）
-  - [ ] Fastify 基础路由框架
-  - [ ] React + Vite 前端脚手架
+  - [ ] Electron 主进程 + IPC 框架搭建
+  - [ ] React + Vite 渲染进程脚手架
 - [ ] **阶段 2 — 数据入库**（v0.2）
   - [ ] JAR 解析引擎（lang / textures / recipes / tags 三重策略）
   - [ ] 材质提取与 jimp 处理
@@ -212,7 +217,7 @@ Modpack developers face many pain points when modifying recipes: looking up item
 - 🤖 **AI-Assisted Conversion** (optional): For bulk migration scenarios, supports LLM recipe type suggestions with confidence scoring and manual review
 - 📤 **Multi-format Export**: KubeJS Script/JSON, vanilla Datapack, one-click script generation
 - 🔧 **Highly Extensible**: Recipe type definitions fully customizable, supports any mod's recipe format
-- 🔌 **Fully Local**: Local WebUI, SQLite storage, offline support, optional Ollama integration
+- 💻 **Desktop Client**: Electron + React native desktop application, direct filesystem access, no browser required
 - 📦 **Vanilla Data Built-in**: Pre-loaded Minecraft vanilla items and recipes, ready out of the box
 
 ### 🚀 Quick Start
@@ -229,11 +234,11 @@ pnpm install
 # Install Ollama: https://ollama.ai
 ollama pull qwen2.5:7b
 
-# Start development server (frontend + backend)
+# Start Electron development mode (hot reload + main process watch)
 pnpm dev
 ```
 
-Visit http://localhost:3000 to start!
+The Electron window will open automatically.
 
 ### 📖 Typical Workflow
 
@@ -283,31 +288,36 @@ Generate a complete KubeJS script and place it directly in your modpack's kubejs
 ### 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     Delightify                       │
-│                                                     │
-│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐ │
-│  │  Mod Manager │  │Visual Editor │  │AI Assistant│ │
-│  │             │  │              │  │ (Optional) │ │
-│  │  JAR Parser │  │ Recipe Slots │  │LLM Suggest │ │
-│  │  Textures   │  │  Item D&D    │  │Bulk Convert│ │
-│  │ Translations│  │ Live Preview │  │Review Flow │ │
-│  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘ │
-│         │                │                │         │
-│         └────────────────┴────────────────┘         │
-│                          │                          │
-│                          ▼                          │
-│              ┌───────────────────────┐              │
-│              │  Local Knowledge DB   │              │
-│              │Items·Recipes·Textures │              │
-│              └───────────┬───────────┘              │
-│                          │                          │
-│                          ▼                          │
-│              ┌───────────────────────┐              │
-│              │    Export Engine      │              │
-│              │  KubeJS · Datapack   │              │
-│              └───────────────────────┘              │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│           Delightify (Electron)                 │
+│                                                 │
+│  ┌───────────────────────────────────────────┐  │
+│  │         Renderer Process (React UI)       │  │
+│  │  ModManager · ItemBrowser · RecipeEditor  │  │
+│  └────────────────┬──────────────────────────┘  │
+│                   │ IPC                         │
+│  ┌────────────────▼──────────────────────────┐  │
+│  │          Main Process (Node.js)           │  │
+│  │  ┌─────────┐ ┌──────────────┐ ┌────────┐ │  │
+│  │  │Mod Mgr  │ │Visual Editor │ │AI Asst.│ │  │
+│  │  │JAR Parse│ │Recipe Slots  │ │LLM Tips│ │  │
+│  │  │Textures │ │Live Preview  │ │Bulk Cvt│ │  │
+│  │  └────┬────┘ └──────┬───────┘ └───┬────┘ │  │
+│  │       └─────────────┴─────────────┘      │  │
+│  │                     │                    │  │
+│  │                     ▼                    │  │
+│  │       ┌─────────────────────────┐        │  │
+│  │       │  Local Knowledge DB    │        │  │
+│  │       │Items·Recipes·Textures  │        │  │
+│  │       └────────────┬────────────┘        │  │
+│  │                    │                     │  │
+│  │                    ▼                     │  │
+│  │       ┌─────────────────────────┐        │  │
+│  │       │      Export Engine     │        │  │
+│  │       │   KubeJS · Datapack    │        │  │
+│  │       └─────────────────────────┘        │  │
+│  └───────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────┘
 ```
 
 ### 🛣️ Roadmap
@@ -317,8 +327,8 @@ Generate a complete KubeJS script and place it directly in your modpack's kubejs
   - [ ] pnpm + Turborepo monorepo initialization
   - [ ] Shared TypeScript type definitions (items, recipes, mods, textures)
   - [ ] Database schema design (Drizzle ORM, 7 tables)
-  - [ ] Fastify base routing framework
-  - [ ] React + Vite frontend scaffold
+  - [ ] Electron main process + IPC framework setup
+  - [ ] React + Vite renderer process scaffold
 - [ ] **Phase 2 — Data Ingestion** (v0.2)
   - [ ] JAR parsing engine (lang / textures / recipes / tags triple strategy)
   - [ ] Texture extraction and jimp processing
