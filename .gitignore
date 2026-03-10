@@ -56,3 +56,18 @@ temp/
 
 # Gradio
 flagged/
+
+# Node / pnpm
+node_modules/
+dist/
+out/
+.turbo/
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Environment files
+.env
+.env.local

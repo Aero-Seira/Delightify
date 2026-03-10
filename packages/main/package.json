@@ -1,0 +1,19 @@
+{
+  "name": "@delightify/main",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@delightify/shared": "workspace:*",
+    "electron": "^30.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
