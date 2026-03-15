@@ -1,4 +1,4 @@
-# 数据格式规范 / Data Format Specification
+# (已过时)数据格式规范 / Data Format Specification
 
 [中文](#中文) | [English](#english)
 

@@ -1,4 +1,4 @@
-# 系统架构设计文档 / System Architecture Design
+# (已过时)系统架构设计文档 / System Architecture Design
 
 [中文](#中文) | [English](#english)
 

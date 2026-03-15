@@ -1,4 +1,4 @@
-# 配置文档 / Configuration Guide
+# (已过时)配置文档 / Configuration Guide
 
 [中文](#中文) | [English](#english)
 
