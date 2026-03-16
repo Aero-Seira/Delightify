@@ -3,18 +3,85 @@
   "version": "0.1.0",
   "private": true,
   "main": "./dist/main.js",
+  "author": "Delightify Team",
+  "description": "Delightify - Minecraft 配方魔改工具",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "postbuild": "node scripts/copy-shared.js",
+    "pack": "pnpm run postbuild && electron-builder --dir",
+    "dist": "pnpm run postbuild && electron-builder",
+    "dist:mac": "pnpm run postbuild && electron-builder --mac",
+    "dist:mac:zip": "pnpm run postbuild && electron-builder --mac --zip",
+    "dist:win": "pnpm run postbuild && electron-builder --win",
+    "dist:linux": "pnpm run postbuild && electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.delightify.app",
+    "productName": "Delightify",
+    "directories": {
+      "output": "../../release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/@delightify/**/*",
+      "../../config/**/*",
+      "!node_modules/.bin/**/*",
+      "!node_modules/**/*.map",
+      "!node_modules/**/*.md",
+      "!node_modules/**/*.ts",
+      "!node_modules/**/test/**/*",
+      "!node_modules/**/tests/**/*"
+    ],
+    "asar": true,
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.games"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icons",
+      "category": "Game"
+    }
   },
   "dependencies": {
     "@delightify/shared": "workspace:*",
-    "drizzle-orm": "^0.30.0",
-    "electron": "^30.0.0"
+    "drizzle-orm": "^0.30.0"
   },
   "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^26.8.1",
     "typescript": "^5.4.0"
   }
 }

@@ -456,6 +456,347 @@ pnpm typecheck    # TypeScript 类型检查（必过才能提交）
 
 ---
 
+## 📦 Electron 打包与测试
+
+### 什么是打包？
+
+**开发时**：代码分散在多个文件，需要 `pnpm dev` 运行  
+**打包后**：生成一个可双击运行的 `.exe`（Windows）/ `.app`（Mac）/ `.AppImage`（Linux）
+
+### 安装打包工具
+
+```bash
+# 安装 electron-builder（只需执行一次）
+cd packages/main
+pnpm add -D electron-builder
+```
+
+### 配置打包
+
+在 `packages/main/package.json` 中添加打包配置：
+
+```json
+{
+  "name": "@delightify/main",
+  "version": "0.1.0",
+  "main": "./dist/main.js",
+  "author": "Your Name",
+  "description": "Delightify - Minecraft 配方魔改工具",
+  
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  
+  "build": {
+    "appId": "com.yourcompany.delightify",
+    "productName": "Delightify",
+    "directories": {
+      "output": "../../release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "../../config/**/*",
+      "!node_modules/**/*"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icons",
+      "category": "Utility"
+    }
+  },
+  
+  "dependencies": {
+    "@delightify/shared": "workspace:*",
+    "drizzle-orm": "^0.30.0",
+    "electron": "^30.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0",
+    "typescript": "^5.4.0"
+  }
+}
+```
+
+### 准备图标文件
+
+打包需要应用图标，按平台准备：
+
+```
+packages/main/build/
+├── icon.ico          ← Windows 图标 (256x256)
+├── icon.icns         ← Mac 图标 (512x512)
+└── icons/            ← Linux 图标
+    ├── 16x16.png
+    ├── 32x32.png
+    ├── 48x48.png
+    ├── 64x64.png
+    ├── 128x128.png
+    ├── 256x256.png
+    └── 512x512.png
+```
+
+**图标生成工具推荐**：
+- 在线转换：https://cloudconvert.com/
+- 命令行：`pnpm add -g icon-gen` 或 `pnpm add -D electron-icon-builder`
+
+### 打包步骤
+
+#### 1. 确保代码已构建
+
+```bash
+# 在项目根目录
+cd /home/aeroseira/dev/GitRepos/Delightify
+pnpm build
+```
+
+#### 2. 复制 workspace 依赖（重要！）
+
+```bash
+cd packages/main
+node scripts/copy-shared.js
+```
+
+这会将 `@delightify/shared` 复制到 `node_modules`，解决打包后找不到模块的问题。
+
+#### 3. 打包当前平台（不生成安装程序）
+
+```bash
+pnpm pack    # 仅打包，不生成安装器，用于测试
+```
+
+输出：`release/win-unpacked/`（Windows 示例）  
+可直接运行里面的 `.exe` 测试
+
+#### 3. 打包并生成安装程序
+
+```bash
+cd packages/main
+pnpm dist    # 生成完整安装包
+```
+
+输出文件：
+- **Windows**：`release/Delightify Setup 0.1.0.exe`
+- **Mac**：`release/Delightify-0.1.0.dmg`
+- **Linux**：`release/Delightify-0.1.0.AppImage`
+
+### 跨平台打包
+
+**注意**：electron-builder 默认只能打包**当前所在平台**。
+
+| 你想打包 | 你需要在 | 命令 |
+|---------|---------|------|
+| Windows (.exe) | Windows 电脑 | `pnpm dist` |
+| Mac (.dmg) | Mac 电脑 | `pnpm dist` |
+| Linux (.AppImage) | Linux 电脑 | `pnpm dist` |
+
+**跨平台打包方案**：
+
+1. **GitHub Actions**（推荐）：推送到 GitHub 自动打包所有平台
+2. **Docker**：使用 Linux 容器打包所有平台（仅限 Windows/Linux，Mac 必须用 Mac）
+3. **虚拟机**：在 Windows/Mac 虚拟机中分别打包
+
+### GitHub Actions 自动打包配置
+
+创建 `.github/workflows/build.yml`：
+
+```yaml
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'    # 推送 v 开头的标签时触发，如 v0.1.0
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+          
+      - name: Install dependencies
+        run: pnpm install
+        
+      - name: Build
+        run: pnpm build
+        
+      - name: Build Electron App
+        run: |
+          cd packages/main
+          pnpm dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-build
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.deb
+            release/*.snap
+```
+
+### 打包前测试清单
+
+打包前确保以下功能正常：
+
+```markdown
+## 功能测试清单
+
+### 基础功能
+- [ ] 应用能正常启动
+- [ ] 窗口大小正确（1280x800）
+- [ ] 标题栏显示正确（Delightify）
+- [ ] 图标显示正确（任务栏/ Dock）
+
+### 界面
+- [ ] 侧边栏导航正常
+- [ ] 所有页面能切换
+- [ ] 深色/浅色主题切换正常
+- [ ] 语言切换正常（中文/英文）
+
+### 文件操作
+- [ ] 能选择文件夹（项目选择）
+- [ ] 能选择 JAR 文件
+- [ ] 文件操作有正确反馈
+
+### 性能
+- [ ] 启动时间在 3 秒内
+- [ ] 切换页面无卡顿
+- [ ] 内存占用合理（< 500MB）
+```
+
+### 调试打包问题
+
+#### 问题 1：打包后白屏
+
+**原因**：渲染进程路径错误  
+**解决**：检查 `main.ts` 中的 loadFile/loadURL 路径
+
+```typescript
+// 开发环境
+if (isDev) {
+  win.loadURL('http://localhost:5173');
+} else {
+  // 生产环境 - 确保路径正确
+  win.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
+}
+```
+
+#### 问题 2：资源文件缺失
+
+**原因**：配置文件/图标没被打包  
+**解决**：在 `package.json` 的 `build.files` 中包含
+
+```json
+"files": [
+  "dist/**/*",
+  "../../config/**/*",    // 包含配置
+  "build/icon.*",         // 包含图标
+  "!node_modules/**/*"
+]
+```
+
+#### 问题 3：Node 模块找不到
+
+**原因**：依赖没正确安装  
+**解决**：确保 `dependencies` 而非 `devDependencies`
+
+```bash
+# 如果是运行时需要的模块
+cd packages/main
+pnpm add better-sqlite3    # 不是 -D
+```
+
+#### 问题 4：图标不显示
+
+**原因**：图标格式或路径错误  
+**解决**：
+- Windows：使用 `.ico` 格式（多尺寸：16,32,48,256）
+- Mac：使用 `.icns` 格式
+- Linux：使用 `.png` 文件夹
+
+### 发布新版本流程
+
+```bash
+# 1. 更新版本号（所有 package.json）
+# packages/main/package.json
+# packages/renderer/package.json  
+# packages/shared/package.json
+# package.json（根目录）
+
+# 2. 提交代码
+git add .
+git commit -m "chore: bump version to v0.2.0"
+
+# 3. 打标签
+git tag v0.2.0
+
+# 4. 推送（GitHub Actions 会自动打包）
+git push origin main --tags
+
+# 5. 等待 GitHub Actions 完成，在 Releases 页面发布
+```
+
+---
+
 ## 🐛 调试技巧
 
 ### 1. 查看界面（渲染进程）
@@ -495,6 +836,17 @@ pnpm typecheck    # TypeScript 类型检查（必过才能提交）
 3. **文字走 i18n** - 即使只做中文，也便于后期维护
 4. **组件要独立** - 一个组件一个文件夹，包含自己的样式
 5. **经常运行 `pnpm typecheck`** - 尽早发现类型错误
+
+---
+
+## 📋 打包相关文件索引
+
+| 文件 | 用途 |
+|------|------|
+| `DEVELOPER_GUIDE.md` | 本文件，打包详细教程 |
+| `QUICK_REF.md` | 打包命令速查 |
+| `PACKAGE_TEST_CHECKLIST.md` | 发布前测试清单 |
+| `.github/workflows/build.yml` | GitHub Actions 自动打包配置 |
 
 ---
 

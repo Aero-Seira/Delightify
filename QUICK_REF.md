@@ -112,8 +112,77 @@ pnpm clean
 
 ---
 
+## 📦 打包与发布
+
+### 安装打包工具
+```bash
+cd packages/main
+pnpm add -D electron-builder
+```
+
+### 打包配置（package.json）
+```json
+{
+  "scripts": {
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.yourcompany.delightify",
+    "productName": "Delightify",
+    "directories": {
+      "output": "../../release"
+    },
+    "files": [
+      "dist/**/*",
+      "../../config/**/*"
+    ]
+  }
+}
+```
+
+### 打包命令
+```bash
+# 1. 先构建代码
+cd /home/aeroseira/dev/GitRepos/Delightify
+pnpm build
+
+# 2. 打包（测试用，不生成安装器）
+cd packages/main
+pnpm pack          # 输出: release/win-unpacked/
+
+# 3. 打包（生成安装程序）
+pnpm dist          # 输出: release/Delightify Setup.exe
+```
+
+### 各平台输出文件
+| 平台 | 文件类型 | 说明 |
+|------|----------|------|
+| Windows | `.exe` (nsis) | 安装程序 |
+| Windows | `.exe` (portable) | 绿色版，无需安装 |
+| Mac | `.dmg` | 磁盘映像安装包 |
+| Linux | `.AppImage` | 可执行单文件 |
+| Linux | `.deb` | Debian/Ubuntu 安装包 |
+
+### 图标准备
+```
+packages/main/build/
+├── icon.ico         # Windows (256x256)
+├── icon.icns        # Mac (512x512)
+└── icons/           # Linux (多尺寸)
+    ├── 16x16.png
+    ├── 32x32.png
+    ├── 48x48.png
+    ├── 128x128.png
+    ├── 256x256.png
+    └── 512x512.png
+```
+
+---
+
 ## 🐛 快速排错
 
+### 开发调试
 | 问题 | 解决方案 |
 |------|----------|
 | 修改没生效 | 按 `Ctrl+R` 刷新 |
@@ -121,6 +190,14 @@ pnpm clean
 | 报错 red 文字 | 看终端输出，通常是类型错误 |
 | 页面白屏 | 检查浏览器控制台（Ctrl+Shift+I）|
 | 构建失败 | 先运行 `pnpm typecheck` 看具体错误 |
+
+### 打包问题
+| 问题 | 解决方案 |
+|------|----------|
+| 打包后白屏 | 检查 main.ts 中 loadFile 路径 |
+| 图标不显示 | 确保图标格式正确（ico/icns/png）|
+| 资源缺失 | 在 package.json build.files 中添加 |
+| 跨平台打包 | 必须在对应系统上打包（或用 CI）|
 
 ---
 
