@@ -1,13 +1,19 @@
 import React from 'react';
+import { useI18n } from '../../i18n';
+import styles from './style.module.css';
 
 export default function ItemBrowserPage(): React.ReactElement {
+  const { t } = useI18n();
+
   return (
-    <div>
-      <h1>Item Browser</h1>
-      <p>Browse items from imported mods with texture icons and filters.</p>
-      <p style={{ color: '#6c7086' }}>
-        Coming soon — item grid with search and filters (Phase 3).
-      </p>
+    <div className={styles.container}>
+      <h1 className={styles.title}>{t('itemBrowser.title')}</h1>
+      <p className={styles.description}>{t('itemBrowser.description')}</p>
+      <div className={styles.content}>
+        <p className={styles.placeholder}>
+          Coming soon — item grid with search and filters (Phase 3).
+        </p>
+      </div>
     </div>
   );
 }

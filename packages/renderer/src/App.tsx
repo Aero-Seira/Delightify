@@ -1,53 +1,53 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { useI18n } from './i18n';
+import { initializeTheme } from './theme';
 import ModManagerPage from './pages/ModManager';
 import ItemBrowserPage from './pages/ItemBrowser';
 import RecipeBrowserPage from './pages/RecipeBrowser';
 import RecipeEditorPage from './pages/RecipeEditor';
 import ConversionToolPage from './pages/ConversionTool';
+import LanguageSwitcher from './components/LanguageSwitcher';
+import ThemeToggle from './components/ThemeToggle';
+import styles from './App.module.css';
 
 export default function App(): React.ReactElement {
+  const { t } = useI18n();
+
+  // 初始化主题
+  useEffect(() => {
+    initializeTheme();
+  }, []);
+
   return (
     <BrowserRouter>
-      <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
-        <nav
-          style={{
-            width: 200,
-            background: '#1e1e2e',
-            color: '#cdd6f4',
-            padding: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-          }}
-        >
-          <h2 style={{ margin: '0 0 1rem', fontSize: '1.2rem', color: '#cba6f7' }}>
-            Delightify
-          </h2>
+      <div className={styles.appContainer}>
+        <nav className={styles.sidebar}>
+          <h2 className={styles.logo}>Delightify</h2>
           {[
-            { to: '/', label: '🗂 Mods' },
-            { to: '/items', label: '📦 Items' },
-            { to: '/recipes', label: '📋 Recipes' },
-            { to: '/editor', label: '✏️ Editor' },
-            { to: '/convert', label: '🤖 Convert' },
+            { to: '/', label: `🗂 ${t('nav.modManager')}` },
+            { to: '/items', label: `📦 ${t('nav.itemBrowser')}` },
+            { to: '/recipes', label: `📋 ${t('nav.recipeBrowser')}` },
+            { to: '/editor', label: `✏️ ${t('nav.recipeEditor')}` },
+            { to: '/convert', label: `🤖 ${t('nav.conversionTool')}` },
           ].map(({ to, label }) => (
             <NavLink
               key={to}
               to={to}
               end={to === '/'}
-              style={({ isActive }) => ({
-                color: isActive ? '#cba6f7' : '#cdd6f4',
-                textDecoration: 'none',
-                padding: '0.4rem 0.6rem',
-                borderRadius: 4,
-                background: isActive ? '#313244' : 'transparent',
-              })}
+              className={({ isActive }) =>
+                isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+              }
             >
               {label}
             </NavLink>
           ))}
+          <div className={styles.controls}>
+            <ThemeToggle />
+            <LanguageSwitcher />
+          </div>
         </nav>
-        <main style={{ flex: 1, overflow: 'auto', padding: '1.5rem', background: '#1e1e2e', color: '#cdd6f4' }}>
+        <main className={styles.mainContent}>
           <Routes>
             <Route path="/" element={<ModManagerPage />} />
             <Route path="/items" element={<ItemBrowserPage />} />

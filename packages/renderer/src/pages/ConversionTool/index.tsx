@@ -1,13 +1,19 @@
 import React from 'react';
+import { useI18n } from '../../i18n';
+import styles from './style.module.css';
 
 export default function ConversionToolPage(): React.ReactElement {
+  const { t } = useI18n();
+
   return (
-    <div>
-      <h1>LLM Conversion Tool</h1>
-      <p>Convert recipes with AI assistance and review workflow.</p>
-      <p style={{ color: '#6c7086' }}>
-        Coming soon — LLM conversion with confidence scoring (Phase 4).
-      </p>
+    <div className={styles.container}>
+      <h1 className={styles.title}>{t('conversionTool.title')}</h1>
+      <p className={styles.description}>{t('conversionTool.description')}</p>
+      <div className={styles.content}>
+        <p className={styles.placeholder}>
+          Coming soon — LLM conversion with confidence scoring (Phase 4).
+        </p>
+      </div>
     </div>
   );
 }

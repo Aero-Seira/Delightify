@@ -1,0 +1,38 @@
+/* ItemBrowser Page Styles - Apple Design */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: var(--font-size-2xl);
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.021em;
+}
+
+.description {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+}
+
+.content {
+  background-color: var(--surface-primary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: var(--space-6);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-sm);
+}
+
+.placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+  text-align: center;
+  padding: var(--space-10) 0;
+}

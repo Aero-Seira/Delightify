@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@delightify/shared": "workspace:*",
+    "drizzle-orm": "^0.30.0",
     "electron": "^30.0.0"
   },
   "devDependencies": {
