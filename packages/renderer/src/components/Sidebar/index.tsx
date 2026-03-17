@@ -122,8 +122,12 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps): 
   return (
     <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : ''}`}>
       {/* Logo Section */}
-      <div className={styles.logoSection}>
-        <div className={styles.logoIcon}>D</div>
+        <div className={styles.logoSection}>
+        <img 
+          src="/assets/delightify_icon.png" 
+          alt="Delightify" 
+          className={styles.logoIcon}
+        />
         <span className={styles.logoText}>Delightify</span>
       </div>
 
