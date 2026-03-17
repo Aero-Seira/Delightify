@@ -1,55 +1,60 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useI18n } from './i18n';
 import { initializeTheme } from './theme';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import Dashboard from './pages/Dashboard';
 import ModManagerPage from './pages/ModManager';
 import ItemBrowserPage from './pages/ItemBrowser';
 import RecipeBrowserPage from './pages/RecipeBrowser';
 import RecipeEditorPage from './pages/RecipeEditor';
 import ConversionToolPage from './pages/ConversionTool';
-import LanguageSwitcher from './components/LanguageSwitcher';
-import ThemeToggle from './components/ThemeToggle';
 import styles from './App.module.css';
 
-export default function App(): React.ReactElement {
+// Inner component that has access to router
+function AppContent(): React.ReactElement {
   const { t } = useI18n();
-
-  // 初始化主题
-  useEffect(() => {
-    initializeTheme();
-  }, []);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const location = useLocation();
+  
+  const pageTitle = useMemo(() => {
+    const path = location.pathname;
+    switch (path) {
+      case '/':
+        return t('nav.dashboard');
+      case '/mods':
+        return t('nav.modManager');
+      case '/items':
+        return t('nav.itemBrowser');
+      case '/recipes':
+        return t('nav.recipeBrowser');
+      case '/editor':
+        return t('nav.recipeEditor');
+      case '/convert':
+        return t('nav.conversionTool');
+      default:
+        return t('common.appName');
+    }
+  }, [location.pathname, t]);
 
   return (
-    <BrowserRouter>
-      <div className={styles.appContainer}>
-        <nav className={styles.sidebar}>
-          <h2 className={styles.logo}>Delightify</h2>
-          {[
-            { to: '/', label: `🗂 ${t('nav.modManager')}` },
-            { to: '/items', label: `📦 ${t('nav.itemBrowser')}` },
-            { to: '/recipes', label: `📋 ${t('nav.recipeBrowser')}` },
-            { to: '/editor', label: `✏️ ${t('nav.recipeEditor')}` },
-            { to: '/convert', label: `🤖 ${t('nav.conversionTool')}` },
-          ].map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
-              }
-            >
-              {label}
-            </NavLink>
-          ))}
-          <div className={styles.controls}>
-            <ThemeToggle />
-            <LanguageSwitcher />
-          </div>
-        </nav>
+    <div className={styles.appContainer}>
+      <Sidebar 
+        collapsed={sidebarCollapsed} 
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} 
+      />
+      
+      <div className={`${styles.mainWrapper} ${sidebarCollapsed ? styles.mainWrapperCollapsed : ''}`}>
+        <Header 
+          pageTitle={pageTitle}
+          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} 
+        />
+        
         <main className={styles.mainContent}>
           <Routes>
-            <Route path="/" element={<ModManagerPage />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/mods" element={<ModManagerPage />} />
             <Route path="/items" element={<ItemBrowserPage />} />
             <Route path="/recipes" element={<RecipeBrowserPage />} />
             <Route path="/editor" element={<RecipeEditorPage />} />
@@ -57,6 +62,19 @@ export default function App(): React.ReactElement {
           </Routes>
         </main>
       </div>
+    </div>
+  );
+}
+
+export default function App(): React.ReactElement {
+  // 初始化主题
+  useEffect(() => {
+    initializeTheme();
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 }

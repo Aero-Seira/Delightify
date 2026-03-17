@@ -1,81 +1,63 @@
-/* App Component Styles - Apple Design */
+/* App Layout - AstrBot Style */
 
 .appContainer {
   display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-secondary);
+}
+
+/* Main Wrapper - adjusts margin based on sidebar state */
+.mainWrapper {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  transition: margin-left var(--transition-base);
+  min-height: 100vh;
   height: 100vh;
-  font-family: var(--font-sans);
-  background-color: var(--bg-primary);
+  overflow: hidden;
 }
 
-/* Sidebar - Glassmorphism effect */
-.sidebar {
-  width: 220px;
-  background-color: var(--surface-primary);
-  color: var(--text-primary);
-  padding: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  border-right: 1px solid var(--border);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
+.mainWrapperCollapsed {
+  margin-left: var(--sidebar-collapsed);
 }
 
-.logo {
-  margin: 0 0 var(--space-5);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-primary);
-  letter-spacing: -0.021em;
-  text-align: center;
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border);
-}
-
-.navLink {
-  color: var(--text-secondary);
-  text-decoration: none;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  background: transparent;
-  transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid transparent;
-}
-
-.navLink:hover {
-  background-color: var(--surface-secondary);
-  color: var(--text-primary);
-}
-
-.navLinkActive {
-  color: var(--accent);
-  background-color: var(--accent-light);
-  border-color: var(--accent);
-}
-
-.navLinkActive:hover {
-  background-color: var(--accent-light);
-  color: var(--accent);
-}
-
-.controls {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border);
-}
-
+/* Main Content Area */
 .mainContent {
   flex: 1;
-  overflow: auto;
-  padding: var(--space-6);
+  overflow-y: auto;
+  overflow-x: hidden;
   background-color: var(--bg-secondary);
+}
+
+/* Page Container */
+.pageContainer {
+  padding: var(--space-6);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Page Header */
+.pageHeader {
+  margin-bottom: var(--space-6);
+}
+
+.pageTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.pageDescription {
+  font-size: var(--font-size-base);
+  color: var(--text-secondary);
+}
+
+/* Content Card */
+.contentCard {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
 }

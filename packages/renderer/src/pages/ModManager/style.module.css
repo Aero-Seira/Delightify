@@ -1,38 +1,183 @@
-/* ModManager Page Styles - Apple Design */
+/* ModManager Page Styles - AstrBot Style */
 
 .container {
+  padding: var(--space-6);
   max-width: 1200px;
   margin: 0 auto;
 }
 
+.pageHeader {
+  margin-bottom: var(--space-6);
+}
+
 .title {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   margin-bottom: var(--space-2);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.021em;
 }
 
 .description {
+  font-size: var(--font-size-base);
   color: var(--text-secondary);
-  margin-bottom: var(--space-6);
-  font-size: var(--font-size-md);
-  line-height: 1.6;
+  margin-bottom: 0;
 }
 
 .content {
-  background-color: var(--surface-primary);
-  border-radius: var(--radius-lg);
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   padding: var(--space-6);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
   box-shadow: var(--shadow-sm);
 }
 
 .placeholder {
   color: var(--text-tertiary);
-  font-style: italic;
   text-align: center;
-  padding: var(--space-10) 0;
+  padding: var(--space-12) 0;
+  font-size: var(--font-size-base);
+}
+
+/* Upload Area */
+.uploadArea {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-10);
+  text-align: center;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  background-color: var(--bg-secondary);
+}
+
+.uploadArea:hover {
+  border-color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+.uploadIcon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto var(--space-4);
+  color: var(--text-tertiary);
+}
+
+.uploadText {
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-2);
+}
+
+.uploadHint {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+}
+
+/* Action Bar */
+.actionBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.actionBarTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.importButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--primary);
+  color: white;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.importButton:hover {
+  background-color: var(--primary-hover);
+}
+
+/* JAR List */
+.jarList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.jarItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.jarIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary-light);
+  border-radius: var(--radius);
+  color: var(--primary);
+}
+
+.jarInfo {
+  flex: 1;
+}
+
+.jarName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.jarMeta {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.jarStatus {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+}
+
+.statusPending {
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.statusSuccess {
+  background-color: var(--success-light);
+  color: var(--success);
+}
+
+.statusError {
+  background-color: var(--error-light);
+  color: var(--error);
 }

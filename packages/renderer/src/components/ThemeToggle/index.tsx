@@ -86,14 +86,7 @@ export default function ThemeToggle(): React.ReactElement {
 
   return (
     <div className={styles.container}>
-      <button
-        className={styles.toggleButton}
-        onClick={handleClick}
-        title={getTitle()}
-        aria-label={getTitle()}
-      >
-        <span className={styles.icon}>{getIcon()}</span>
-      </button>
+      
       <div className={styles.menu}>
         <button
           className={`${styles.menuItem} ${mode === 'light' ? styles.active : ''}`}
