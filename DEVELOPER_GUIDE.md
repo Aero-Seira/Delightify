@@ -359,6 +359,144 @@ function MyPage() {
 
 ---
 
+## 📁 项目管理模块开发指南
+
+### 模块概述
+
+项目管理模块用于管理 Minecraft 整合包项目，包括创建、打开、编辑、删除和收藏项目。
+
+**文件位置**：
+```
+packages/renderer/src/
+├── pages/ProjectManager/          # 项目管理页面
+│   ├── index.tsx                  # 主组件
+│   └── style.module.css           # 样式
+├── components/CreateProjectDialog/ # 创建项目对话框
+│   ├── index.tsx
+│   └── style.module.css
+└── store/projectStore.ts          # 项目状态管理
+```
+
+### 核心功能
+
+#### 1. 项目状态管理 (projectStore.ts)
+
+```typescript
+import { useProjectStore } from '../../store/projectStore';
+
+function MyComponent() {
+  const { 
+    projects,              // 项目列表
+    currentProject,        // 当前打开的项目
+    isLoadingProjects,     // 加载状态
+    loadProjects,          // 加载项目列表
+    createProject,         // 创建项目
+    openProject,           // 打开项目
+    deleteProject,         // 删除项目
+    setFavorite,           // 设置收藏
+  } = useProjectStore();
+
+  // 创建新项目
+  const handleCreate = async () => {
+    const project = await createProject({
+      name: '我的整合包',
+      path: '/path/to/modpack',
+      mcVersion: '1.20.1',
+      modLoader: 'forge',
+      description: '项目描述',
+    });
+  };
+
+  // 打开项目
+  const handleOpen = async (projectId: string) => {
+    await openProject(projectId);
+  };
+}
+```
+
+#### 2. 项目数据结构
+
+```typescript
+interface Project {
+  id: string;                    // 唯一标识
+  name: string;                  // 项目名称
+  description?: string;          // 描述
+  path: string;                  // 项目路径
+  mcVersion: string;             // MC版本 (如 "1.20.1")
+  modLoader: 'forge' | 'fabric' | 'neoforge' | 'quilt';
+  createdAt: string;             // 创建时间
+  updatedAt: string;             // 更新时间
+  lastOpenedAt?: string;         // 最后打开时间
+  isFavorite?: boolean;          // 是否收藏
+  totalMods: number;             // 模组数量
+  totalRecipes: number;          // 配方数量
+  totalItems: number;            // 物品数量
+}
+```
+
+#### 3. 添加项目相关 IPC 通道
+
+在 `packages/shared/src/constants/ipc.ts` 中添加：
+
+```typescript
+export const IPC_CHANNELS = {
+  // ... 其他通道
+  PROJECT_LIST: 'project:list',
+  PROJECT_OPEN: 'project:open',
+  PROJECT_CREATE: 'project:create',
+  PROJECT_UPDATE: 'project:update',
+  PROJECT_DELETE: 'project:delete',
+  PROJECT_GET_CURRENT: 'project:get-current',
+  PROJECT_SELECT_DIRECTORY: 'project:select-directory',
+};
+```
+
+#### 4. 添加国际化翻译
+
+在 `packages/renderer/src/i18n/locales/zh-CN.ts` 中添加：
+
+```typescript
+projectManager: {
+  title: '项目管理',
+  description: '管理你的 Minecraft 整合包项目',
+  createProject: '创建项目',
+  open: '打开',
+  edit: '编辑',
+  delete: '删除',
+  favorite: '收藏',
+  searchPlaceholder: '搜索项目...',
+  noProjects: '暂无项目',
+  createFirst: '创建你的第一个项目',
+  gridView: '网格视图',
+  listView: '列表视图',
+  currentProject: '当前项目',
+  confirmDelete: '确认删除',
+  confirmDeleteDesc: '确定要删除项目 "{{name}}" 吗？',
+},
+```
+
+### 常见问题
+
+#### Q: 项目创建后没有显示？
+**A**: 检查以下几点：
+1. 确保调用了 `loadProjects()` 刷新列表
+2. 检查 IPC 处理器是否正确注册
+3. 查看控制台是否有错误信息
+
+#### Q: 如何修改项目的样式？
+**A**: 编辑 `packages/renderer/src/pages/ProjectManager/style.module.css`，主要类名：
+- `.projectGrid` - 网格容器
+- `.projectCard` - 项目卡片
+- `.projectListItem` - 列表项
+
+#### Q: 如何添加新的筛选条件？
+**A**: 
+1. 在 `ProjectListParams` 类型中添加新字段
+2. 在 store 的 `loadProjects` 中处理筛选逻辑
+3. 在页面组件中添加筛选 UI
+
+---
+
 ## 🔧 常见开发任务速查
 
 ### 1. 添加新页面

@@ -3,7 +3,7 @@
  * 用于浏览、创建、打开、编辑和删除项目
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import { useProjectStore } from '../../store/projectStore';
 import CreateProjectDialog from '../../components/CreateProjectDialog';
@@ -133,7 +133,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
 }) => {
   const { t } = useI18n();
   const [showMenu, setShowMenu] = useState(false);
-  const menuRef = React.useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // 点击外部关闭菜单
   useEffect(() => {

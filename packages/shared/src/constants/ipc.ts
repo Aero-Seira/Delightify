@@ -14,6 +14,9 @@ export const IPC_CHANNELS = {
   JAR_IMPORT: 'jar:import',
   JAR_IMPORT_PROGRESS: 'jar:import:progress',
   JAR_LIST: 'jar:list',
+  JAR_SELECT: 'jar:select',
+  JAR_DELETE: 'jar:delete',
+  JAR_GET_DETAILS: 'jar:get-details',
 
   // Item queries
   ITEMS_QUERY: 'items:query',

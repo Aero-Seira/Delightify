@@ -19,6 +19,7 @@ export interface ItemQueryParams {
   search?: string;
   modId?: string;
   category?: string;
+  tag?: string;
   page?: number;
   pageSize?: number;
 }
@@ -41,14 +42,22 @@ export interface RecipeFilter {
 export interface JarImportResult {
   success: boolean;
   filePath: string;
+  modId: string;
+  modName: string;
   itemCount: number;
   recipeCount: number;
+  tagCount: number;
+  textureCount: number;
 }
 
 export interface JarImportProgress {
   step: string;
   percent: number;
   filePath: string;
+  currentFile?: string;
+  processedCount?: number;
+  totalCount?: number;
+  error?: string;
 }
 
 // LLM conversion types

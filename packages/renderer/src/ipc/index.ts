@@ -13,9 +13,12 @@ export interface ElectronAPI {
   selectDirectory: () => Promise<{ canceled: boolean; filePaths?: string[] }>;
 
   // JAR import
-  jarImport: (filePath: string) => Promise<{ success: boolean; itemCount: number; recipeCount: number }>;
-  jarList: () => Promise<unknown[]>;
-  onJarImportProgress: (callback: (progress: unknown) => void) => () => void;
+  jarImport: (filePath: string) => Promise<{ success: boolean; data?: { modId: string; modName: string; itemCount: number; recipeCount: number; tagCount: number; textureCount: number }; error?: string }>;
+  jarList: () => Promise<{ success: boolean; data?: import('@delightify/shared').Mod[]; error?: string }>;
+  jarSelect: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
+  jarDelete: (modId: string) => Promise<{ success: boolean; data?: boolean; error?: string }>;
+  jarGetDetails: (modId: string) => Promise<{ success: boolean; data?: import('@delightify/shared').Mod | null; error?: string }>;
+  onJarImportProgress: (callback: (progress: { step: string; percent: number; filePath: string; currentFile?: string; processedCount?: number; totalCount?: number; error?: string }) => void) => () => void;
 
   // Item queries
   itemsQuery: (query: unknown) => Promise<{ items: unknown[]; total: number }>;

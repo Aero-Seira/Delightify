@@ -69,8 +69,13 @@ interface ProjectState {
   clearErrors: () => void;
 }
 
-// IPC API 引用
-const electronAPI = () => window.electronAPI;
+// IPC API 引用 - 安全获取
+const electronAPI = () => {
+  if (typeof window === 'undefined' || !window.electronAPI) {
+    throw new Error('Electron API not available');
+  }
+  return window.electronAPI;
+};
 
 /**
  * 项目 Store

@@ -13,6 +13,15 @@
   --primary-light: #eff6ff;
   --primary-dark: #1d4ed8;
   
+  /* Accent 别名（用于组件样式兼容） */
+  --accent-primary: #3b82f6;
+  --accent-secondary: #60a5fa;
+  --accent-hover: #2563eb;
+  --accent-light: #eff6ff;
+  --accent-warning: #f59e0b;
+  --accent-error: #ef4444;
+  --accent-success: #22c55e;
+  
   /* 成功/状态色 */
   --success: #22c55e;
   --success-light: #f0fdf4;
@@ -131,6 +140,15 @@
   --primary: #60a5fa;
   --primary-hover: #3b82f6;
   --primary-light: rgba(59, 130, 246, 0.15);
+  
+  /* Accent 别名 */
+  --accent-primary: #60a5fa;
+  --accent-secondary: #93c5fd;
+  --accent-hover: #3b82f6;
+  --accent-light: rgba(59, 130, 246, 0.15);
+  --accent-warning: #fbbf24;
+  --accent-error: #f87171;
+  --accent-success: #4ade80;
 }
 
 /* ============================================
