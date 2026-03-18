@@ -7,20 +7,52 @@ import { createGlobalDbClient, closeAllConnections, schema } from './services/da
 const isDev = process.env.NODE_ENV === 'development';
 
 function createWindow(): void {
+  const preloadPath = path.join(__dirname, 'preload.js');
+  console.log('[Main] Preload script path:', preloadPath);
+  console.log('[Main] isDev:', isDev);
+  
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
+      // 开发模式下允许加载本地资源
+      webSecurity: !isDev,
     },
   });
 
+  // 监听 preload 加载错误
+  win.webContents.on('preload-error', (event, preloadPath, error) => {
+    console.error('[Main] Preload error:', preloadPath, error);
+  });
+
+  // 监听控制台消息
+  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    if (message.includes('electronAPI') || message.includes('Preload') || level === 3) {
+      console.log(`[Renderer:${level}] ${message}`);
+    }
+  });
+
   if (isDev) {
+    console.log('[Main] Loading Vite dev server at http://localhost:5173');
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
+    
+    // 开发模式下，当页面加载完成后，手动检查 preload 是否生效
+    win.webContents.on('did-finish-load', () => {
+      console.log('[Main] Page did finish load');
+      win.webContents.executeJavaScript(`
+        console.log('[Preload Check] electronAPI available:', !!window.electronAPI);
+        console.log('[Preload Check] typeof electronAPI:', typeof window.electronAPI);
+        if (!window.electronAPI) {
+          console.error('[Preload Check] electronAPI is NOT available! Preload script may have failed to load.');
+        }
+      `);
+    });
   } else {
+    console.log('[Main] Loading production build');
     win.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
   }
 }

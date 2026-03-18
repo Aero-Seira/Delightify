@@ -20,6 +20,8 @@ export const IPC_CHANNELS = {
 
   // Item queries
   ITEMS_QUERY: 'items:query',
+  ITEMS_GET_BY_MOD: 'items:get-by-mod',
+  ITEMS_GET_TAGS: 'items:get-tags',
   ITEMS_GET_TEXTURE: 'items:get-texture',
 
   // Recipe CRUD

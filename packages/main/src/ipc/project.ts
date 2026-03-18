@@ -278,7 +278,7 @@ export function registerProjectHandlers(): void {
   });
 
   // ========== PROJECT_UPDATE: 更新项目 ==========
-  ipcMain.handle('project:update', async (_event, projectId: string, data: UpdateProjectData): Promise<ProjectResult> => {
+  ipcMain.handle(IPC_CHANNELS.PROJECT_UPDATE, async (_event, projectId: string, data: UpdateProjectData): Promise<ProjectResult> => {
     try {
       const projects = await readProjects();
       const projectIndex = projects.findIndex(p => p.id === projectId);
@@ -327,7 +327,7 @@ export function registerProjectHandlers(): void {
   });
 
   // ========== PROJECT_DELETE: 删除项目 ==========
-  ipcMain.handle('project:delete', async (_event, projectId: string): Promise<ProjectDeleteResult> => {
+  ipcMain.handle(IPC_CHANNELS.PROJECT_DELETE, async (_event, projectId: string): Promise<ProjectDeleteResult> => {
     try {
       const projects = await readProjects();
       const projectIndex = projects.findIndex(p => p.id === projectId);
@@ -380,7 +380,7 @@ export function registerProjectHandlers(): void {
   // ========== 额外的辅助 IPC 处理器 ==========
   
   // 选择目录对话框（用于创建项目时的路径选择）
-  ipcMain.handle('project:select-directory', async (): Promise<{ canceled: boolean; filePaths?: string[] }> => {
+  ipcMain.handle(IPC_CHANNELS.PROJECT_SELECT_DIRECTORY, async (): Promise<{ canceled: boolean; filePaths?: string[] }> => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory'],
       title: '选择项目目录',

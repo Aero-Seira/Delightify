@@ -148,7 +148,7 @@ export function registerItemsHandlers(): void {
   });
 
   // ITEMS_GET_BY_MOD: Get all items from a specific mod
-  ipcMain.handle('items:get-by-mod', async (
+  ipcMain.handle(IPC_CHANNELS.ITEMS_GET_BY_MOD, async (
     _event,
     modId: string
   ): Promise<IpcResponse<Item[]>> => {
@@ -184,7 +184,7 @@ export function registerItemsHandlers(): void {
   });
 
   // ITEMS_GET_TAGS: Get all tags for an item
-  ipcMain.handle('items:get-tags', async (
+  ipcMain.handle(IPC_CHANNELS.ITEMS_GET_TAGS, async (
     _event,
     itemId: string
   ): Promise<IpcResponse<string[]>> => {

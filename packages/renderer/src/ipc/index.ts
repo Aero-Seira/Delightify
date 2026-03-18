@@ -70,13 +70,22 @@ function isElectron(): boolean {
  * 获取 Electron API
  * 在 Electron 环境中返回真实的 API
  * 在浏览器环境中返回 Mock API
+ * 
+ * 注意：在 Electron 开发模式下，如果 preload 脚本未加载（如加载外部 Vite 服务器），
+ * 会自动降级使用 Mock API
  */
 export const electronAPI = (): ElectronAPI => {
-  if (isElectron()) {
-    if (!window.electronAPI) {
-      throw new Error('electronAPI is not available. Are you running inside Electron?');
-    }
+  // 优先检查 window.electronAPI 是否存在
+  if (window.electronAPI) {
     return window.electronAPI;
+  }
+  
+  // 在 Electron 环境中但 API 不存在（preload 未加载），打印警告并使用 Mock
+  if (isElectron()) {
+    console.warn('[IPC] Detected Electron environment but electronAPI is not available. ' +
+      'Preload script may not have loaded (common in dev mode with external URL). ' +
+      'Falling back to Mock API.');
+    return mockElectronAPI as unknown as ElectronAPI;
   }
   
   // 浏览器环境，使用 Mock

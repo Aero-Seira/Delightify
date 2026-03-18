@@ -207,7 +207,7 @@ export function registerJarHandlers(): void {
   });
 
   // JAR_SELECT: Open file dialog to select JAR file
-  ipcMain.handle('jar:select', async (): Promise<IpcResponse<string | null>> => {
+  ipcMain.handle(IPC_CHANNELS.JAR_SELECT, async (): Promise<IpcResponse<string | null>> => {
     try {
       const result = await dialog.showOpenDialog({
         properties: ['openFile'],
@@ -231,7 +231,7 @@ export function registerJarHandlers(): void {
   });
 
   // JAR_DELETE: Delete a mod from database
-  ipcMain.handle('jar:delete', async (_event, modId: string): Promise<IpcResponse<boolean>> => {
+  ipcMain.handle(IPC_CHANNELS.JAR_DELETE, async (_event, modId: string): Promise<IpcResponse<boolean>> => {
     try {
       if (!modId || typeof modId !== 'string') {
         return { success: false, error: 'Invalid mod ID' };
@@ -274,7 +274,7 @@ export function registerJarHandlers(): void {
   });
 
   // JAR_GET_DETAILS: Get detailed info about a mod
-  ipcMain.handle('jar:get-details', async (_event, modId: string): Promise<IpcResponse<Mod | null>> => {
+  ipcMain.handle(IPC_CHANNELS.JAR_GET_DETAILS, async (_event, modId: string): Promise<IpcResponse<Mod | null>> => {
     try {
       if (!modId || typeof modId !== 'string') {
         return { success: false, error: 'Invalid mod ID' };
