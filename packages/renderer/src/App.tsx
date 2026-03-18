@@ -5,6 +5,7 @@ import { initializeTheme } from './theme';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
+import ProjectManagerPage from './pages/ProjectManager';
 import ModManagerPage from './pages/ModManager';
 import ItemBrowserPage from './pages/ItemBrowser';
 import RecipeBrowserPage from './pages/RecipeBrowser';
@@ -23,6 +24,8 @@ function AppContent(): React.ReactElement {
     switch (path) {
       case '/':
         return t('nav.dashboard');
+      case '/projects':
+        return t('nav.projectManager');
       case '/mods':
         return t('nav.modManager');
       case '/items':
@@ -54,6 +57,7 @@ function AppContent(): React.ReactElement {
         <main className={styles.mainContent}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/projects" element={<ProjectManagerPage />} />
             <Route path="/mods" element={<ModManagerPage />} />
             <Route path="/items" element={<ItemBrowserPage />} />
             <Route path="/recipes" element={<RecipeBrowserPage />} />

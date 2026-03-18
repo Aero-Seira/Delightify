@@ -6,6 +6,9 @@ export const IPC_CHANNELS = {
   PROJECT_OPEN: 'project:open',
   PROJECT_CREATE: 'project:create',
   PROJECT_GET_CURRENT: 'project:get-current',
+  PROJECT_UPDATE: 'project:update',
+  PROJECT_DELETE: 'project:delete',
+  PROJECT_SELECT_DIRECTORY: 'project:select-directory',
 
   // JAR import
   JAR_IMPORT: 'jar:import',

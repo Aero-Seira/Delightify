@@ -5,11 +5,16 @@ import { IPC_CHANNELS } from '@delightify/shared';
 contextBridge.exposeInMainWorld('electronAPI', {
   // Project management
   projectList: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
-  projectOpen: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_OPEN),
+  projectOpen: (projectId?: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_OPEN, projectId),
   projectCreate: (data: unknown) =>
     ipcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, data),
   projectGetCurrent: () =>
     ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_CURRENT),
+  projectUpdate: (projectId: string, data: unknown) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_UPDATE, projectId, data),
+  projectDelete: (projectId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_DELETE, projectId),
+  selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SELECT_DIRECTORY),
 
   // JAR import
   jarImport: (filePath: string) =>
