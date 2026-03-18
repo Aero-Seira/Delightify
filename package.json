@@ -3,14 +3,21 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "pnpm run build && concurrently \"pnpm:dev:renderer\" \"pnpm:dev:main\" \"pnpm:dev:electron\"",
+    "dev:safe": "pnpm run build && concurrently \"pnpm:dev:renderer\" \"pnpm:dev:main\" \"pnpm:dev:electron:safe\"",
+    "dev:renderer": "cd packages/renderer && pnpm dev",
+    "dev:main": "cd packages/main && pnpm dev",
+    "dev:electron": "wait-on http://localhost:5173 && cd packages/main && pnpm electron",
+    "dev:electron:safe": "wait-on http://localhost:5173 && cd packages/main && pnpm electron:safe",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "turbo": "^2.0.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "wait-on": "^9.0.4"
   },
   "engines": {
     "node": ">=18.0.0",
