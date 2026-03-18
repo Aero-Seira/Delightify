@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   jarImport: (filePath: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.JAR_IMPORT, filePath),
   jarList: () => ipcRenderer.invoke(IPC_CHANNELS.JAR_LIST),
+  jarSelect: () => ipcRenderer.invoke(IPC_CHANNELS.JAR_SELECT),
+  jarDelete: (modId: string) => ipcRenderer.invoke(IPC_CHANNELS.JAR_DELETE, modId),
+  jarGetDetails: (modId: string) => ipcRenderer.invoke(IPC_CHANNELS.JAR_GET_DETAILS, modId),
   onJarImportProgress: (callback: (progress: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: unknown) =>
       callback(progress);

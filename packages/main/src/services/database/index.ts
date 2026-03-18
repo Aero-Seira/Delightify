@@ -20,11 +20,30 @@ export {
   createGlobalDbClient,
   createProjectDbClient,
   createRawConnection,
+  closeAllConnections,
+  clearDbCache,
   schema,
+  eq, and, or, like, desc, asc, sql, count,
   type GlobalDbClient,
   type ProjectDbClient,
   type RawDatabase,
 } from './client';
 
 // Re-export drizzle operators for convenience
-export { eq, ne, gt, gte, lt, lte, like, inArray, and, or, not, desc, asc, sql } from 'drizzle-orm';
+export { 
+  eq as eqOp, 
+  ne, 
+  gt, 
+  gte, 
+  lt, 
+  lte, 
+  like as likeOp, 
+  inArray, 
+  and as andOp, 
+  or as orOp, 
+  not, 
+  desc as descOp, 
+  asc as ascOp, 
+  sql as sqlOp,
+  count as countOp,
+} from 'drizzle-orm';

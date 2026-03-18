@@ -14,10 +14,21 @@ import { mkdir } from 'fs/promises';
  */
 export class AppPaths {
   /** 用户数据目录 (%AppData%/Delightify/) */
-  readonly userData: string;
+  private _userData: string | null = null;
 
-  constructor() {
-    this.userData = app.getPath('userData');
+  /**
+   * 初始化路径（必须在 app.whenReady() 之后调用）
+   */
+  initialize(): void {
+    this._userData = app.getPath('userData');
+  }
+
+  /** 用户数据目录 (%AppData%/Delightify/) */
+  get userData(): string {
+    if (!this._userData) {
+      throw new Error('AppPaths not initialized. Call initialize() after app.whenReady()');
+    }
+    return this._userData;
   }
 
   /** 全局数据库路径 (userData/global.db) */
