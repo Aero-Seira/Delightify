@@ -16,6 +16,10 @@ const sharedDestDir = path.resolve(mainDir, 'node_modules/@delightify/shared');
 const sharedDest = path.join(sharedDestDir, 'dist');
 
 console.log('[copy-shared] Starting...');
+console.log(`[copy-shared] Main dir: ${mainDir}`);
+console.log(`[copy-shared] Shared dir: ${sharedDir}`);
+console.log(`[copy-shared] Shared src: ${sharedSrc}`);
+console.log(`[copy-shared] Shared dest dir: ${sharedDestDir}`);
 
 // 检查源目录是否存在
 if (!fs.existsSync(sharedSrc)) {
@@ -30,6 +34,29 @@ if (!fs.existsSync(sharedPkg)) {
   process.exit(1);
 }
 
+// 确保目标目录的父目录存在
+const parentDir = path.dirname(sharedDestDir);
+if (!fs.existsSync(parentDir)) {
+  try {
+    fs.mkdirSync(parentDir, { recursive: true });
+    console.log(`[copy-shared] Created parent directory: ${parentDir}`);
+  } catch (err) {
+    console.error(`[copy-shared] Error creating parent directory: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+// 如果目标目录已存在，删除它
+if (fs.existsSync(sharedDestDir)) {
+  try {
+    fs.rmSync(sharedDestDir, { recursive: true, force: true });
+    console.log(`[copy-shared] Removed existing directory: ${sharedDestDir}`);
+  } catch (err) {
+    console.error(`[copy-shared] Error removing existing directory: ${err.message}`);
+    // 继续尝试
+  }
+}
+
 // 创建目标目录
 try {
   fs.mkdirSync(sharedDestDir, { recursive: true });
@@ -39,10 +66,22 @@ try {
   process.exit(1);
 }
 
-// 复制 package.json
+// 读取并修改 package.json，移除 workspace 引用
 try {
-  fs.copyFileSync(sharedPkg, path.join(sharedDestDir, 'package.json'));
-  console.log(`[copy-shared] Copied package.json`);
+  const pkgContent = fs.readFileSync(sharedPkg, 'utf-8');
+  const pkg = JSON.parse(pkgContent);
+  
+  // 移除 workspace 相关的字段
+  if (pkg.dependencies && pkg.dependencies['@delightify/shared'] === 'workspace:*') {
+    delete pkg.dependencies['@delightify/shared'];
+  }
+  
+  // 写入修改后的 package.json
+  fs.writeFileSync(
+    path.join(sharedDestDir, 'package.json'), 
+    JSON.stringify(pkg, null, 2)
+  );
+  console.log(`[copy-shared] Copied and modified package.json`);
 } catch (err) {
   console.error(`[copy-shared] Error copying package.json: ${err.message}`);
   process.exit(1);
@@ -77,8 +116,18 @@ function copyDir(src, dest) {
 try {
   copyDir(sharedSrc, sharedDest);
   console.log(`[copy-shared] Copied ${sharedSrc} -> ${sharedDest}`);
-  console.log('[copy-shared] Done!');
 } catch (err) {
   console.error(`[copy-shared] Error copying files: ${err.message}`);
   process.exit(1);
 }
+
+// 验证复制结果
+if (!fs.existsSync(sharedDest)) {
+  console.error('[copy-shared] Error: Copy verification failed, dist directory not found');
+  process.exit(1);
+}
+
+// 列出复制的内容
+const copiedFiles = fs.readdirSync(sharedDest);
+console.log(`[copy-shared] Copied ${copiedFiles.length} items to dist`);
+console.log('[copy-shared] Done!');
