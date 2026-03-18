@@ -1,37 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '../../i18n';
+import { electronAPI, checkElectronEnvironment } from '../../ipc';
+import type { Mod } from '@delightify/shared';
 import styles from './style.module.css';
-
-// 本地定义 Mod 类型以避免导入问题
-interface Mod {
-  modId: string;
-  modName: string;
-  version?: string;
-  mcVersion?: string;
-  sourceType: 'builtin' | 'jar' | 'manual';
-  jarPath?: string;
-  parsedAt?: string;
-  itemCount: number;
-  recipeCount: number;
-}
-
-// 安全地获取 electronAPI
-function getElectronAPI() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  const api = (window as unknown as { electronAPI?: unknown }).electronAPI;
-  if (!api) {
-    return null;
-  }
-  return api as {
-    jarList: () => Promise<{ success: boolean; data?: Mod[]; error?: string }>;
-    jarSelect: () => Promise<{ success: boolean; data?: string | null; error?: string }>;
-    jarImport: (filePath: string) => Promise<{ success: boolean; data?: { modId: string; modName: string; itemCount: number; recipeCount: number; tagCount: number; textureCount: number }; error?: string }>;
-    jarDelete: (modId: string) => Promise<{ success: boolean; data?: boolean; error?: string }>;
-    onJarImportProgress: (callback: (progress: { step: string; percent: number; filePath: string; currentFile?: string; processedCount?: number; totalCount?: number; error?: string }) => void) => () => void;
-  };
-}
 
 export default function ModManagerPage(): React.ReactElement {
   const { t } = useI18n();
@@ -47,21 +18,16 @@ export default function ModManagerPage(): React.ReactElement {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
-
-  // 检查是否在 Electron 环境中
-  const isElectron = typeof window !== 'undefined' && !!(window as unknown as { electronAPI?: unknown }).electronAPI;
+  
+  // 检测运行环境
+  const isElectron = checkElectronEnvironment();
 
   // 加载模组列表
   const loadMods = useCallback(async () => {
-    const api = getElectronAPI();
-    if (!api) {
-      setError('Electron API not available. Please run this app in Electron.');
-      return;
-    }
-
     try {
       setIsLoading(true);
       setError(null);
+      const api = electronAPI();
       const result = await api.jarList();
       
       if (result.success && result.data) {
@@ -78,18 +44,12 @@ export default function ModManagerPage(): React.ReactElement {
 
   // 初始加载
   useEffect(() => {
-    if (isElectron) {
-      loadMods();
-    }
-  }, [loadMods, isElectron]);
+    loadMods();
+  }, [loadMods]);
 
   // 订阅导入进度
   useEffect(() => {
-    if (!isElectron) return;
-
-    const api = getElectronAPI();
-    if (!api) return;
-
+    const api = electronAPI();
     unsubscribeRef.current = api.onJarImportProgress((progress) => {
       setImportProgress({
         step: progress.step,
@@ -105,21 +65,16 @@ export default function ModManagerPage(): React.ReactElement {
         unsubscribeRef.current();
       }
     };
-  }, [isElectron]);
+  }, []);
 
   // 选择并导入 JAR 文件
   const handleImportJar = async () => {
-    const api = getElectronAPI();
-    if (!api) {
-      setError('Electron API not available');
-      return;
-    }
-
     try {
       setIsImporting(true);
       setError(null);
       setImportProgress({ step: 'reading', percent: 0 });
 
+      const api = electronAPI();
       const selectResult = await api.jarSelect();
       
       if (!selectResult.success) {
@@ -156,12 +111,6 @@ export default function ModManagerPage(): React.ReactElement {
 
   // 删除模组
   const handleDeleteMod = async (modId: string, modName: string) => {
-    const api = getElectronAPI();
-    if (!api) {
-      setError('Electron API not available');
-      return;
-    }
-
     // 使用简单的确认对话框
     const confirmed = typeof window !== 'undefined' && window.confirm 
       ? window.confirm(`确定要删除模组 "${modName}" 吗？相关的物品和配方数据也会被删除。`)
@@ -173,6 +122,7 @@ export default function ModManagerPage(): React.ReactElement {
 
     try {
       setIsLoading(true);
+      const api = electronAPI();
       const result = await api.jarDelete(modId);
       
       if (result.success) {
@@ -202,32 +152,28 @@ export default function ModManagerPage(): React.ReactElement {
     return labels[step] || step;
   };
 
-  // 如果不是在 Electron 环境中，显示提示
-  if (!isElectron) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.pageHeader}>
-          <h1 className={styles.title}>模组管理</h1>
-          <p className={styles.description}>导入和管理 Minecraft 模组 JAR 文件</p>
-        </div>
-        <div className={styles.errorMessage}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          请在 Electron 应用中打开此页面。当前运行在浏览器模式中，无法访问系统功能。
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className={styles.container}>
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{t('modManager.title')}</h1>
         <p className={styles.description}>{t('modManager.description')}</p>
       </div>
+      
+      {/* 浏览器模式提示 */}
+      {!isElectron && (
+        <div className={styles.browserModeBanner}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>
+            <strong>浏览器调试模式</strong> - 
+            当前运行在浏览器环境中，使用的是模拟数据。部分功能（如文件选择、真实数据库操作）不可用。
+            使用 <code>pnpm dev</code> 启动 Electron 以获得完整功能。
+          </span>
+        </div>
+      )}
       
       <div className={styles.content}>
         <div className={styles.actionBar}>

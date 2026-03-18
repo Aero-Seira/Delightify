@@ -1,6 +1,7 @@
 // Type definition for the Electron API exposed via contextBridge in preload.ts
 
 import type { Project, CreateProjectData } from '@delightify/shared';
+import { mockElectronAPI } from './mock';
 
 export interface ElectronAPI {
   // Project management
@@ -39,13 +40,53 @@ export interface ElectronAPI {
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electronAPI?: ElectronAPI;
   }
 }
 
-export const electronAPI = (): ElectronAPI => {
-  if (!window.electronAPI) {
-    throw new Error('electronAPI is not available. Are you running inside Electron?');
+/**
+ * 检测是否在 Electron 环境中
+ */
+function isElectron(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
   }
-  return window.electronAPI;
+  
+  // 检查是否有 electronAPI
+  if (window.electronAPI) {
+    return true;
+  }
+  
+  // 检查 userAgent
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (userAgent.includes('electron')) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * 获取 Electron API
+ * 在 Electron 环境中返回真实的 API
+ * 在浏览器环境中返回 Mock API
+ */
+export const electronAPI = (): ElectronAPI => {
+  if (isElectron()) {
+    if (!window.electronAPI) {
+      throw new Error('electronAPI is not available. Are you running inside Electron?');
+    }
+    return window.electronAPI;
+  }
+  
+  // 浏览器环境，使用 Mock
+  console.log('[IPC] Running in browser mode, using Mock API');
+  return mockElectronAPI as unknown as ElectronAPI;
 };
+
+/**
+ * 检查是否在 Electron 环境
+ */
+export function checkElectronEnvironment(): boolean {
+  return isElectron();
+}

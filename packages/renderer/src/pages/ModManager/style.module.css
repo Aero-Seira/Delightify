@@ -4,6 +4,44 @@
   overflow-y: auto;
 }
 
+/* 浏览器模式提示 */
+.browserModeBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 8px;
+  color: #b45309;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.browserModeBanner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.browserModeBanner code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+[data-theme="dark"] .browserModeBanner {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .browserModeBanner code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .pageHeader {
   margin-bottom: 24px;
 }
