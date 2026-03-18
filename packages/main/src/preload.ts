@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC_CHANNELS } from '@delightify/shared';
 
 // Expose a safe IPC API to the renderer process
@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   jarDelete: (modId: string) => ipcRenderer.invoke(IPC_CHANNELS.JAR_DELETE, modId),
   jarGetDetails: (modId: string) => ipcRenderer.invoke(IPC_CHANNELS.JAR_GET_DETAILS, modId),
   onJarImportProgress: (callback: (progress: unknown) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, progress: unknown) =>
+    const listener = (_event: IpcRendererEvent, progress: unknown) =>
       callback(progress);
     ipcRenderer.on(IPC_CHANNELS.JAR_IMPORT_PROGRESS, listener);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.JAR_IMPORT_PROGRESS, listener);
@@ -53,7 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.LLM_CONVERT, data),
   llmCancel: () => ipcRenderer.invoke(IPC_CHANNELS.LLM_CANCEL),
   onLlmConvertProgress: (callback: (progress: unknown) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, progress: unknown) =>
+    const listener = (_event: IpcRendererEvent, progress: unknown) =>
       callback(progress);
     ipcRenderer.on(IPC_CHANNELS.LLM_CONVERT_PROGRESS, listener);
     return () =>

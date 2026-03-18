@@ -13,8 +13,8 @@ import {
   validateJarFile,
   saveJarParseResult,
   getModsList,
-  type JarParseProgress,
 } from '../services/jar-parser';
+import type { JarParseProgress } from '../services/jar-parser/types';
 
 /**
  * 活跃的导入任务 Map
