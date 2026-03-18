@@ -8,7 +8,7 @@
  * import { createGlobalDbClient, schema, eq } from '@delightify/main/services/database';
  * 
  * const db = createGlobalDbClient(globalDbPath);
- * const mods = await db.select().from(schema.mods).where(eq(schema.mods.modId, 'farmersdelight'));
+ * const result = await db.execute('SELECT * FROM mods');
  * ```
  */
 

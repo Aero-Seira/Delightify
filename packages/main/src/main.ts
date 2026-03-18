@@ -43,9 +43,8 @@ async function initializeApp(): Promise<void> {
     console.log('[Main] Global database initialized:', appPaths.globalDb);
     
     // 3. 验证数据库连接
-    // 尝试执行一个简单的查询来验证连接 (better-sqlite3 是同步的)
-    const result = globalDb.select().from(schema.mods).limit(1).all();
-    console.log('[Main] Database connection verified, mods count:', result.length);
+    const result = await globalDb.execute('SELECT COUNT(*) as count FROM mods');
+    console.log('[Main] Database connection verified, mods count:', result.rows[0]?.count || 0);
     
     console.log('[Main] Application initialized successfully');
   } catch (error) {

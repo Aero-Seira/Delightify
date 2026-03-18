@@ -11,10 +11,8 @@ import { createGlobalDbClient } from '../services/database';
 import { 
   parseJarFile, 
   validateJarFile,
-  saveJarParseResult,
-  getModsList,
+  type JarParseProgress,
 } from '../services/jar-parser';
-import type { JarParseProgress } from '../services/jar-parser/types';
 
 /**
  * 活跃的导入任务 Map
@@ -89,7 +87,54 @@ export function registerJarHandlers(): void {
       });
 
       const db = createGlobalDbClient(appPaths.globalDb);
-      await saveJarParseResult(db, result, filePath);
+      
+      // 保存模组信息
+      const now = new Date().toISOString();
+      await db.execute({
+        sql: `INSERT INTO mods (mod_id, mod_name, version, mc_version, source_type, jar_path, parsed_at, item_count, recipe_count)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(mod_id) DO UPDATE SET
+                mod_name = excluded.mod_name,
+                version = excluded.version,
+                mc_version = excluded.mc_version,
+                jar_path = excluded.jar_path,
+                parsed_at = excluded.parsed_at,
+                item_count = excluded.item_count,
+                recipe_count = excluded.recipe_count`,
+        args: [
+          result.modInfo.modId,
+          result.modInfo.modName,
+          result.modInfo.version || null,
+          result.modInfo.mcVersion || null,
+          'jar',
+          filePath,
+          now,
+          result.stats.itemCount,
+          result.stats.recipeCount,
+        ],
+      });
+
+      // 批量保存物品
+      for (const item of result.items) {
+        await db.execute({
+          sql: `INSERT INTO items (item_id, mod_id, display_name_key, display_name, category, is_block, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(item_id) DO UPDATE SET
+                  display_name_key = excluded.display_name_key,
+                  display_name = excluded.display_name,
+                  category = excluded.category,
+                  is_block = excluded.is_block`,
+          args: [
+            item.itemId,
+            item.modId,
+            item.translationKey,
+            item.name,
+            'misc', // TODO: 从 tags 推断
+            item.isBlock ? 1 : 0,
+            now,
+          ],
+        });
+      }
 
       // 6. 完成
       sendProgress(win, {
@@ -138,19 +183,19 @@ export function registerJarHandlers(): void {
       const db = createGlobalDbClient(appPaths.globalDb);
       
       // 从数据库查询所有模组
-      const modsFromDb = await getModsList(db);
+      const result = await db.execute('SELECT * FROM mods ORDER BY parsed_at DESC');
       
       // 转换为 Mod 类型
-      const mods: Mod[] = modsFromDb.map((mod: typeof modsFromDb[0]) => ({
-        modId: mod.modId,
-        modName: mod.modName,
-        version: mod.version || undefined,
-        mcVersion: mod.mcVersion || undefined,
-        sourceType: mod.sourceType as 'jar' | 'builtin' | 'manual',
-        jarPath: mod.jarPath || undefined,
-        parsedAt: mod.parsedAt || undefined,
-        itemCount: mod.itemCount,
-        recipeCount: mod.recipeCount,
+      const mods: Mod[] = result.rows.map((row: any) => ({
+        modId: row.mod_id,
+        modName: row.mod_name,
+        version: row.version || undefined,
+        mcVersion: row.mc_version || undefined,
+        sourceType: row.source_type as 'jar' | 'builtin' | 'manual',
+        jarPath: row.jar_path || undefined,
+        parsedAt: row.parsed_at || undefined,
+        itemCount: row.item_count,
+        recipeCount: row.recipe_count,
       }));
 
       return { success: true, data: mods };
@@ -194,9 +239,31 @@ export function registerJarHandlers(): void {
 
       const db = createGlobalDbClient(appPaths.globalDb);
       
-      // 删除模组及其相关数据
-      const { deleteModFromDatabase } = await import('../services/jar-parser/persistence');
-      await deleteModFromDatabase(db, modId);
+      // 删除模组及其相关数据（使用事务）
+      await db.execute({
+        sql: 'DELETE FROM item_tags WHERE item_id IN (SELECT item_id FROM items WHERE mod_id = ?)',
+        args: [modId],
+      });
+      
+      await db.execute({
+        sql: 'DELETE FROM items WHERE mod_id = ?',
+        args: [modId],
+      });
+      
+      await db.execute({
+        sql: 'DELETE FROM recipes WHERE mod_id = ?',
+        args: [modId],
+      });
+      
+      await db.execute({
+        sql: 'DELETE FROM textures WHERE mod_id = ?',
+        args: [modId],
+      });
+      
+      await db.execute({
+        sql: 'DELETE FROM mods WHERE mod_id = ?',
+        args: [modId],
+      });
 
       return { success: true, data: true };
     } catch (error) {
@@ -214,24 +281,28 @@ export function registerJarHandlers(): void {
       }
 
       const db = createGlobalDbClient(appPaths.globalDb);
-      const { getModDetails } = await import('../services/jar-parser/persistence');
       
-      const modDetails = await getModDetails(db, modId);
+      const result = await db.execute({
+        sql: 'SELECT * FROM mods WHERE mod_id = ?',
+        args: [modId],
+      });
       
-      if (!modDetails) {
+      const row = result.rows[0] as any;
+      
+      if (!row) {
         return { success: true, data: null };
       }
 
       const mod: Mod = {
-        modId: modDetails.modId,
-        modName: modDetails.modName,
-        version: modDetails.version || undefined,
-        mcVersion: modDetails.mcVersion || undefined,
-        sourceType: modDetails.sourceType as 'jar' | 'builtin' | 'manual',
-        jarPath: modDetails.jarPath || undefined,
-        parsedAt: modDetails.parsedAt || undefined,
-        itemCount: modDetails.itemCount,
-        recipeCount: modDetails.recipeCount,
+        modId: row.mod_id,
+        modName: row.mod_name,
+        version: row.version || undefined,
+        mcVersion: row.mc_version || undefined,
+        sourceType: row.source_type as 'jar' | 'builtin' | 'manual',
+        jarPath: row.jar_path || undefined,
+        parsedAt: row.parsed_at || undefined,
+        itemCount: row.item_count,
+        recipeCount: row.recipe_count,
       };
 
       return { success: true, data: mod };

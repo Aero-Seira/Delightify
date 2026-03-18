@@ -7,7 +7,7 @@ import type {
   Item 
 } from '@delightify/shared';
 import { appPaths } from '../services/paths';
-import { createGlobalDbClient, schema, eq, like, and, or, desc, sql } from '../services/database';
+import { createGlobalDbClient, schema } from '../services/database';
 
 export function registerItemsHandlers(): void {
   // ITEMS_QUERY: Query items from database with filtering and pagination
@@ -29,70 +29,59 @@ export function registerItemsHandlers(): void {
       const db = createGlobalDbClient(appPaths.globalDb);
 
       // 构建查询条件
-      const conditions = [];
-
+      const conditions: string[] = [];
+      
       if (search) {
-        const searchPattern = `%${search}%`;
-        conditions.push(
-          or(
-            like(schema.items.itemId, searchPattern),
-            like(schema.items.displayName, searchPattern),
-            like(schema.items.displayNameKey, searchPattern)
-          )
-        );
+        conditions.push(`(item_id LIKE '%${search}%' OR display_name LIKE '%${search}%' OR display_name_key LIKE '%${search}%')`);
       }
 
       if (modId) {
-        conditions.push(eq(schema.items.modId, modId));
+        conditions.push(`mod_id = '${modId}'`);
       }
 
       if (category) {
-        conditions.push(eq(schema.items.category, category as any));
-      }
-
-      // 构建基础查询
-      let query = db.select().from(schema.items);
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as typeof query;
+        conditions.push(`category = '${category}'`);
       }
 
       // 获取总数
-      const countQuery = db.select({ count: sql<number>`count(*)` }).from(schema.items);
-      let finalCountQuery = countQuery;
+      let countQuery = 'SELECT COUNT(*) as count FROM items';
       if (conditions.length > 0) {
-        finalCountQuery = countQuery.where(and(...conditions)) as typeof countQuery;
+        countQuery += ' WHERE ' + conditions.join(' AND ');
       }
-      const countResult = await finalCountQuery;
-      const total = countResult[0]?.count || 0;
+      
+      const countResult = await db.execute(countQuery);
+      const total = Number(countResult.rows[0]?.count || 0);
 
       // 分页查询
-      const offset = (page - 1) * pageSize;
-      const itemsFromDb = await query
-        .orderBy(desc(schema.items.createdAt))
-        .limit(pageSize)
-        .offset(offset);
+      let query = 'SELECT * FROM items';
+      if (conditions.length > 0) {
+        query += ' WHERE ' + conditions.join(' AND ');
+      }
+      query += ' ORDER BY created_at DESC';
+      query += ` LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
+
+      const result = await db.execute(query);
 
       // 转换为 Item 类型
-      const items: Item[] = itemsFromDb.map(item => ({
-        itemId: item.itemId,
-        modId: item.modId,
-        displayNameKey: item.displayNameKey || undefined,
-        displayName: item.displayName || undefined,
-        category: (item.category as Item['category']) || 'misc',
-        texturePath: item.texturePath || undefined,
-        isBlock: item.isBlock,
-        createdAt: item.createdAt,
+      const items: Item[] = result.rows.map((row: any) => ({
+        itemId: row.item_id,
+        modId: row.mod_id,
+        displayNameKey: row.display_name_key || undefined,
+        displayName: row.display_name || undefined,
+        category: (row.category as Item['category']) || 'misc',
+        texturePath: row.texture_path || undefined,
+        isBlock: Boolean(row.is_block),
+        createdAt: row.created_at,
       }));
 
-      const result: ItemQueryResult = {
+      const queryResult: ItemQueryResult = {
         items,
         total,
         page,
         pageSize,
       };
 
-      return { success: true, data: result };
+      return { success: true, data: queryResult };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to query items';
       console.error('[Items] Query error:', error);
@@ -118,11 +107,13 @@ export function registerItemsHandlers(): void {
       const db = createGlobalDbClient(appPaths.globalDb);
 
       // 查询物品的材质信息
-      const item = await db.query.items.findFirst({
-        where: eq(schema.items.itemId, itemId),
+      const result = await db.execute({
+        sql: 'SELECT texture_cache_name FROM items WHERE item_id = ?',
+        args: [itemId],
       });
 
-      if (!item || !item.textureCacheName) {
+      const row = result.rows[0] as any;
+      if (!row || !row.texture_cache_name) {
         return { success: true, data: null };
       }
 
@@ -133,7 +124,7 @@ export function registerItemsHandlers(): void {
       // 查找实际的缓存文件
       try {
         const files = fs.readdirSync(appPaths.textureCache);
-        const pattern = new RegExp(`^${item.textureCacheName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_[a-f0-9]{8}\\.png$`);
+        const pattern = new RegExp(`^${row.texture_cache_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_[a-f0-9]{8}\\.png$`);
         
         for (const file of files) {
           if (pattern.test(file)) {
@@ -168,20 +159,20 @@ export function registerItemsHandlers(): void {
 
       const db = createGlobalDbClient(appPaths.globalDb);
 
-      const itemsFromDb = await db.select()
-        .from(schema.items)
-        .where(eq(schema.items.modId, modId))
-        .orderBy(schema.items.displayName);
+      const result = await db.execute({
+        sql: 'SELECT * FROM items WHERE mod_id = ? ORDER BY display_name',
+        args: [modId],
+      });
 
-      const items: Item[] = itemsFromDb.map(item => ({
-        itemId: item.itemId,
-        modId: item.modId,
-        displayNameKey: item.displayNameKey || undefined,
-        displayName: item.displayName || undefined,
-        category: (item.category as Item['category']) || 'misc',
-        texturePath: item.texturePath || undefined,
-        isBlock: item.isBlock,
-        createdAt: item.createdAt,
+      const items: Item[] = result.rows.map((row: any) => ({
+        itemId: row.item_id,
+        modId: row.mod_id,
+        displayNameKey: row.display_name_key || undefined,
+        displayName: row.display_name || undefined,
+        category: (row.category as Item['category']) || 'misc',
+        texturePath: row.texture_path || undefined,
+        isBlock: Boolean(row.is_block),
+        createdAt: row.created_at,
       }));
 
       return { success: true, data: items };
@@ -204,11 +195,12 @@ export function registerItemsHandlers(): void {
 
       const db = createGlobalDbClient(appPaths.globalDb);
 
-      const tagsFromDb = await db.select({ tagId: schema.itemTags.tagId })
-        .from(schema.itemTags)
-        .where(eq(schema.itemTags.itemId, itemId));
+      const result = await db.execute({
+        sql: 'SELECT tag_id FROM item_tags WHERE item_id = ?',
+        args: [itemId],
+      });
 
-      const tags = tagsFromDb.map(t => t.tagId);
+      const tags = result.rows.map((row: any) => row.tag_id as string);
 
       return { success: true, data: tags };
     } catch (error) {

@@ -114,9 +114,7 @@
       }
     ],
     "asar": true,
-    "asarUnpack": [
-      "node_modules/better-sqlite3/**/*"
-    ],
+    "asarUnpack": [],
     "mac": {
       "target": [
         {
@@ -156,17 +154,17 @@
   },
   "dependencies": {
     "@delightify/shared": "workspace:*",
+    "@libsql/client": "^0.17.0",
     "adm-zip": "^0.5.16",
-    "better-sqlite3": "^12.8.0",
     "drizzle-orm": "^0.30.0"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.8",
-    "@types/better-sqlite3": "^7.6.13",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
     "electron": "^30.0.0",
     "electron-builder": "^26.8.1",
+
     "typescript": "^5.4.0",
     "wait-on": "^9.0.4"
   }

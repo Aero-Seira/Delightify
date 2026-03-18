@@ -23,7 +23,6 @@ export * from './lang-parser';
 export * from './tag-parser';
 export * from './recipe-parser';
 export * from './texture-extractor';
-export * from './persistence';
 
 /**
  * 扩展 ParserOptions，添加缓存目录
