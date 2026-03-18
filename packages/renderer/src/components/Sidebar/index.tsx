@@ -132,7 +132,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps): 
       {/* Logo Section */}
         <div className={styles.logoSection}>
         <img 
-          src="/assets/delightify_icon.png" 
+          src="./assets/delightify_icon.png" 
           alt="Delightify" 
           className={styles.logoIcon}
         />

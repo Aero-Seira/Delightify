@@ -1,3 +1,4 @@
+import { ipcMain, shell } from 'electron';
 import { registerProjectHandlers } from './project';
 import { registerJarHandlers } from './jar';
 import { registerItemsHandlers } from './items';
@@ -12,4 +13,9 @@ export function registerAllHandlers(): void {
   registerRecipesHandlers();
   registerTexturesHandlers();
   registerLlmHandlers();
+  
+  // 注册 shell.openExternal 处理程序
+  ipcMain.handle('shell:open-external', async (_event, url: string) => {
+    await shell.openExternal(url);
+  });
 }

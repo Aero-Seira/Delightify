@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useI18n } from '../../i18n';
 import { useTheme } from '../../theme';
+import { electronAPI } from '../../ipc';
 import styles from './style.module.css';
 import type { Language } from '@delightify/shared';
 
@@ -141,7 +142,10 @@ export default function Header({ onToggleSidebar, pageTitle }: HeaderProps): Rea
         {/* GitHub Link */}
         <button
           className={styles.iconButton}
-          onClick={() => window.open('https://github.com/Aero-Seira/Delightify', '_blank')}
+          onClick={() => {
+            const api = electronAPI();
+            api.openExternal('https://github.com/Aero-Seira/Delightify');
+          }}
           title={t('header.github')}
         >
           <GithubIcon />

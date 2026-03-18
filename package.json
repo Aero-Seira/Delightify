@@ -11,7 +11,13 @@
     "dev:electron:safe": "wait-on http://localhost:5173 && cd packages/main && pnpm electron:safe",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "dist:win": "cd packages/main && pnpm dist:win",
+    "dist:win:dir": "cd packages/main && pnpm dist:win:dir",
+    "dist:mac": "cd packages/main && pnpm dist:mac",
+    "dist:mac:zip": "cd packages/main && pnpm dist:mac:zip",
+    "dist:linux": "cd packages/main && pnpm dist:linux",
+    "pack": "cd packages/main && pnpm pack"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

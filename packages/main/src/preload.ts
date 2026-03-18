@@ -98,6 +98,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () =>
       ipcRenderer.removeListener(IPC_CHANNELS.LLM_CONVERT_PROGRESS, listener);
   },
+
+  // Shell operations
+  openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 });
 
 console.log('[Preload] electronAPI exposed successfully');

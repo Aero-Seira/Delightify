@@ -36,6 +36,9 @@ export interface ElectronAPI {
   llmConvert: (data: unknown) => Promise<{ results: unknown[]; status: string }>;
   llmCancel: () => Promise<{ success: boolean }>;
   onLlmConvertProgress: (callback: (progress: unknown) => void) => () => void;
+
+  // Shell operations
+  openExternal: (url: string) => Promise<void>;
 }
 
 declare global {
