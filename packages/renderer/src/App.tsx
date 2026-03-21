@@ -11,6 +11,7 @@ import ItemBrowserPage from './pages/ItemBrowser';
 import RecipeBrowserPage from './pages/RecipeBrowser';
 import RecipeEditorPage from './pages/RecipeEditor';
 import ConversionToolPage from './pages/ConversionTool';
+import DebugToolsPage from './pages/DebugTools';
 import styles from './App.module.css';
 
 // Inner component that has access to router
@@ -36,6 +37,8 @@ function AppContent(): React.ReactElement {
         return t('nav.recipeEditor');
       case '/convert':
         return t('nav.conversionTool');
+      case '/debug':
+        return '数据库管理';
       default:
         return t('common.appName');
     }
@@ -63,6 +66,7 @@ function AppContent(): React.ReactElement {
             <Route path="/recipes" element={<RecipeBrowserPage />} />
             <Route path="/editor" element={<RecipeEditorPage />} />
             <Route path="/convert" element={<ConversionToolPage />} />
+            <Route path="/debug" element={<DebugToolsPage />} />
           </Routes>
         </main>
       </div>

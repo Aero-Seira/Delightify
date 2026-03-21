@@ -136,6 +136,7 @@ async function initializeDatabase(client: Client, dbPath: string): Promise<void>
         category TEXT,
         texture_path TEXT,
         texture_cache_name TEXT,
+        texture_type TEXT DEFAULT 'unknown',
         is_block INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       );
@@ -292,6 +293,10 @@ async function initializeDatabase(client: Client, dbPath: string): Promise<void>
 
     // 执行建表语句
     await client.executeMultiple(createTablesSQL);
+    
+    // 执行迁移：添加缺失的列
+    await migrateDatabase(client);
+    
     console.log('[DB] Database initialized successfully');
   } catch (error) {
     console.error('[DB] Failed to initialize database:', error);
@@ -349,6 +354,34 @@ export function clearDbCache(dbPath?: string): void {
     dbInstances.delete(dbPath);
   } else {
     dbInstances.clear();
+  }
+}
+
+/**
+ * 数据库迁移
+ * 检查并添加缺失的列
+ */
+async function migrateDatabase(client: Client): Promise<void> {
+  try {
+    // 检查 items 表是否有 texture_type 列
+    const tableInfo = await client.execute(
+      "PRAGMA table_info(items)"
+    );
+    
+    const columns = tableInfo.rows.map((row: any) => row.name);
+    
+    // 添加缺失的列
+    if (!columns.includes('texture_type')) {
+      console.log('[DB Migration] Adding texture_type column to items table');
+      await client.execute(
+        "ALTER TABLE items ADD COLUMN texture_type TEXT DEFAULT 'unknown'"
+      );
+    }
+    
+    console.log('[DB] Migration completed');
+  } catch (error) {
+    console.error('[DB] Migration failed:', error);
+    // 迁移失败不抛出错误，让应用继续运行
   }
 }
 

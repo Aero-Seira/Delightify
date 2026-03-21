@@ -121,10 +121,48 @@ export interface TextureInfo {
   itemName: string;
   /** 图片数据 Buffer */
   data: Buffer;
+  /** 缓存文件名 */
+  cacheName?: string;
   /** 图片宽度 */
   width?: number;
   /** 图片高度 */
   height?: number;
+}
+
+/**
+ * 模型定义（简化版）
+ */
+export interface ModelDefinition {
+  parent?: string;
+  textures?: Record<string, string>;
+  elements?: any[];
+  display?: {
+    gui?: {
+      rotation?: [number, number, number];
+      translation?: [number, number, number];
+      scale?: [number, number, number];
+    };
+    ground?: {
+      rotation?: [number, number, number];
+      translation?: [number, number, number];
+      scale?: [number, number, number];
+    };
+    fixed?: {
+      rotation?: [number, number, number];
+      translation?: [number, number, number];
+      scale?: [number, number, number];
+    };
+    thirdperson_righthand?: {
+      rotation?: [number, number, number];
+      translation?: [number, number, number];
+      scale?: [number, number, number];
+    };
+    firstperson_righthand?: {
+      rotation?: [number, number, number];
+      translation?: [number, number, number];
+      scale?: [number, number, number];
+    };
+  };
 }
 
 /**
@@ -147,6 +185,10 @@ export interface JarParseResult {
   recipes: RecipeParseResult[];
   /** 提取的材质 */
   textures: TextureInfo[];
+  /** 解析的模型: 路径 -> 模型定义 */
+  models?: Map<string, ModelDefinition>;
+  /** 所有语言的翻译: key -> lang -> value */
+  translations: Map<string, Map<string, string>>;
   /** 统计信息 */
   stats: {
     itemCount: number;

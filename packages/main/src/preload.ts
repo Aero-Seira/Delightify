@@ -26,6 +26,15 @@ const IPC_CHANNELS = {
   ITEMS_GET_BY_MOD: 'items:get-by-mod',
   ITEMS_GET_TAGS: 'items:get-tags',
   ITEMS_GET_TEXTURE: 'items:get-texture',
+  ITEMS_GET_ALL_TAGS: 'items:get-all-tags',
+  ITEMS_GET_CATEGORIES: 'items:get-categories',
+  ITEMS_GET_DETAIL: 'items:get-detail',
+
+  // Mod queries
+  MODS_QUERY: 'mods:query',
+
+  // Tag queries
+  TAGS_QUERY: 'tags:query',
 
   // Recipe CRUD
   RECIPES_LIST: 'recipes:list',
@@ -38,6 +47,15 @@ const IPC_CHANNELS = {
   LLM_CONVERT: 'llm:convert',
   LLM_CONVERT_PROGRESS: 'llm:convert:progress',
   LLM_CANCEL: 'llm:cancel',
+
+  // Debug / Database management
+  DEBUG_DB_TABLES: 'debug:db-tables',
+  DEBUG_DB_QUERY: 'debug:db-query',
+  DEBUG_DB_DELETE_MOD: 'debug:db-delete-mod',
+  DEBUG_DB_CLEAR_ALL: 'debug:db-clear-all',
+  DEBUG_CACHE_INFO: 'debug:cache-info',
+  DEBUG_DB_PATH: 'debug:db-path',
+  DEBUG_GET_ITEM_DETAIL: 'debug:get-item-detail',
 } as const;
 
 // Expose a safe IPC API to the renderer process
@@ -74,6 +92,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.ITEMS_QUERY, query),
   itemsGetTexture: (itemId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_TEXTURE, itemId),
+  itemsGetAllTags: () => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_ALL_TAGS),
+  itemsGetCategories: () => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_CATEGORIES),
+  itemsGetDetail: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_DETAIL, itemId),
+
+  // Mod queries
+  modsQuery: () => ipcRenderer.invoke(IPC_CHANNELS.MODS_QUERY),
+
+  // Tag queries
+  tagsQuery: () => ipcRenderer.invoke(IPC_CHANNELS.TAGS_QUERY),
 
   // Recipe CRUD
   recipesList: (filter: unknown) =>
@@ -101,6 +128,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Shell operations
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
+
+  // Debug / Database management
+  debugDbTables: () => ipcRenderer.invoke('debug:db-tables'),
+  debugDbQuery: (sql: string, args?: unknown[]) => ipcRenderer.invoke('debug:db-query', sql, args),
+  debugDbDeleteMod: (modId: string) => ipcRenderer.invoke('debug:db-delete-mod', modId),
+  debugDbClearAll: () => ipcRenderer.invoke('debug:db-clear-all'),
+  debugCacheInfo: () => ipcRenderer.invoke('debug:cache-info'),
+  debugDbPath: () => ipcRenderer.invoke('debug:db-path'),
+  debugGetItemDetail: (itemId: string) => ipcRenderer.invoke('debug:get-item-detail', itemId),
 });
 
 console.log('[Preload] electronAPI exposed successfully');

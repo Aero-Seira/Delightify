@@ -59,8 +59,8 @@ export async function extractTexturesFromJar(
       continue;
     }
 
-    // 如果 itemsOnly 为 true，只提取物品材质
-    if (options.itemsOnly && textureType !== 'item') {
+    // 如果 itemsOnly 为 true，只提取物品和方块材质（用于物品栏显示）
+    if (options.itemsOnly && textureType !== 'item' && textureType !== 'block') {
       continue;
     }
 
@@ -85,8 +85,8 @@ export async function extractTexturesFromJar(
     });
 
     try {
-      // 计算文件哈希
-      const fileHash = crypto.createHash('md5').update(entry.data).digest('hex');
+      // 计算文件哈希 (使用 sha256 与 jar.ts 保持一致)
+      const fileHash = crypto.createHash('sha256').update(entry.data).digest('hex');
       
       // 生成缓存文件名
       const cacheName = `${modId}_${textureType}_${textureName.replace(/\//g, '_')}_${fileHash.slice(0, 8)}.png`;
@@ -99,6 +99,7 @@ export async function extractTexturesFromJar(
           modId,
           itemName: textureName,
           data: entry.data,
+          cacheName,
         });
         continue;
       }
@@ -111,6 +112,7 @@ export async function extractTexturesFromJar(
         modId,
         itemName: textureName,
         data: entry.data,
+        cacheName,
       });
     } catch (error) {
       console.warn(`[TextureExtractor] Failed to extract texture ${entry.path}:`, error);

@@ -12,13 +12,241 @@ import {
   parseJarFile, 
   validateJarFile,
   type JarParseProgress,
+  type RecipeParseResult,
+  type TagParseResult,
+  type TextureInfo,
 } from '../services/jar-parser';
+import { parseResourcesFromJar } from '../services/jar-parser/resource-loader';
+import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * 活跃的导入任务 Map
  * 用于支持取消操作
  */
 const activeImports = new Map<string, { cancel: boolean }>();
+
+/**
+ * 确保目录存在
+ */
+function ensureDirectory(dirPath: string): void {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+/**
+ * 计算 Buffer 的哈希值
+ */
+function hashBuffer(buffer: Buffer): string {
+  return crypto.createHash('sha256').update(buffer).digest('hex').substring(0, 16);
+}
+
+/**
+ * 初始化内置配方类型
+ */
+async function initializeBuiltinRecipeTypes(db: ReturnType<typeof createGlobalDbClient>): Promise<void> {
+  const builtinTypes = [
+    { id: 'minecraft:crafting_shaped', name: '有序合成', inputSlots: 9, outputSlots: 1 },
+    { id: 'minecraft:crafting_shapeless', name: '无序合成', inputSlots: 9, outputSlots: 1 },
+    { id: 'minecraft:smelting', name: '熔炼', inputSlots: 1, outputSlots: 1 },
+    { id: 'minecraft:blasting', name: '高炉冶炼', inputSlots: 1, outputSlots: 1 },
+    { id: 'minecraft:smoking', name: '烟熏', inputSlots: 1, outputSlots: 1 },
+    { id: 'minecraft:campfire_cooking', name: '营火烹饪', inputSlots: 1, outputSlots: 1 },
+    { id: 'minecraft:stonecutting', name: '切石', inputSlots: 1, outputSlots: 1 },
+    { id: 'minecraft:smithing_transform', name: '锻造升级', inputSlots: 3, outputSlots: 1 },
+    { id: 'minecraft:smithing_trim', name: '锻造纹饰', inputSlots: 3, outputSlots: 1 },
+  ];
+
+  for (const type of builtinTypes) {
+    await db.execute({
+      sql: `INSERT INTO recipe_types (recipe_type_id, display_name, input_slot_count, output_slot_count, is_builtin, source_mod_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(recipe_type_id) DO UPDATE SET
+              display_name = excluded.display_name,
+              input_slot_count = excluded.input_slot_count,
+              output_slot_count = excluded.output_slot_count`,
+      args: [type.id, type.name, type.inputSlots, type.outputSlots, 1, 'minecraft'],
+    });
+  }
+}
+
+/**
+ * 保存配方到数据库
+ */
+async function saveRecipes(
+  db: ReturnType<typeof createGlobalDbClient>,
+  recipes: RecipeParseResult[],
+  modId: string,
+  now: string
+): Promise<void> {
+  // 收集所有出现的配方类型
+  const recipeTypes = new Map<string, string>();
+  for (const recipe of recipes) {
+    if (!recipeTypes.has(recipe.recipeType)) {
+      recipeTypes.set(recipe.recipeType, recipe.recipeType.split(':').pop() || recipe.recipeType);
+    }
+  }
+
+  // 保存配方类型（非内置的）
+  for (const [typeId, displayName] of recipeTypes) {
+    if (!typeId.startsWith('minecraft:')) {
+      await db.execute({
+        sql: `INSERT INTO recipe_types (recipe_type_id, display_name, input_slot_count, output_slot_count, is_builtin, source_mod_id)
+              VALUES (?, ?, ?, ?, ?, ?)
+              ON CONFLICT(recipe_type_id) DO NOTHING`,
+        args: [typeId, displayName, 1, 1, 0, modId],
+      });
+    }
+  }
+
+  // 保存配方
+  for (const recipe of recipes) {
+    const inputSlots = JSON.stringify(recipe.inputs);
+    const outputSlots = JSON.stringify(recipe.outputs);
+
+    await db.execute({
+      sql: `INSERT INTO recipes (recipe_id, mod_id, recipe_type_id, raw_json, input_slots, output_slots, parsed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(recipe_id) DO UPDATE SET
+              mod_id = excluded.mod_id,
+              recipe_type_id = excluded.recipe_type_id,
+              raw_json = excluded.raw_json,
+              input_slots = excluded.input_slots,
+              output_slots = excluded.output_slots,
+              parsed_at = excluded.parsed_at`,
+      args: [
+        recipe.recipeId,
+        modId,
+        recipe.recipeType,
+        recipe.rawJson,
+        inputSlots,
+        outputSlots,
+        now,
+      ],
+    });
+  }
+}
+
+/**
+ * 保存标签到数据库
+ */
+async function saveTags(
+  db: ReturnType<typeof createGlobalDbClient>,
+  tags: TagParseResult[],
+  modId: string,
+  validItemIds?: Set<string> // 可选：只保存这些物品的标签
+): Promise<void> {
+  for (const tag of tags) {
+    for (const itemId of tag.items) {
+      // 如果提供了有效物品列表，跳过不在列表中的物品
+      if (validItemIds && !validItemIds.has(itemId)) {
+        continue;
+      }
+      
+      try {
+        await db.execute({
+          sql: `INSERT INTO item_tags (tag_id, item_id, source_mod_id)
+                VALUES (?, ?, ?)
+                ON CONFLICT(tag_id, item_id) DO UPDATE SET
+                  source_mod_id = excluded.source_mod_id`,
+          args: [tag.tagId, itemId, modId],
+        });
+      } catch (error) {
+        // 忽略外键约束错误（物品可能不存在）
+        console.warn(`[SaveTags] Failed to save tag ${tag.tagId} for item ${itemId}:`, error);
+      }
+    }
+  }
+}
+
+/**
+ * 保存翻译到数据库
+ * 支持多语言翻译保存
+ */
+async function saveTranslations(
+  db: ReturnType<typeof createGlobalDbClient>,
+  translationsMap: Map<string, Map<string, string>>, // key -> lang -> value
+  modId: string
+): Promise<void> {
+  // 使用批量插入以提高性能
+  const batchSize = 50;
+  const entries: Array<{ key: string; lang: string; value: string }> = [];
+  
+  for (const [key, langMap] of translationsMap) {
+    for (const [lang, value] of langMap) {
+      entries.push({ key, lang, value });
+    }
+  }
+  
+  for (let i = 0; i < entries.length; i += batchSize) {
+    const batch = entries.slice(i, i + batchSize);
+    
+    for (const { key, lang, value } of batch) {
+      await db.execute({
+        sql: `INSERT INTO translations (key, lang, value, mod_id)
+              VALUES (?, ?, ?, ?)
+              ON CONFLICT(key, lang) DO UPDATE SET
+                value = excluded.value,
+                mod_id = excluded.mod_id`,
+        args: [key, lang, value, modId],
+      });
+    }
+  }
+}
+
+/**
+ * 保存材质到缓存和数据库
+ */
+async function saveTextures(
+  db: ReturnType<typeof createGlobalDbClient>,
+  textures: TextureInfo[],
+  modId: string,
+  cacheDir: string,
+  now: string
+): Promise<void> {
+  // 确保缓存目录存在
+  ensureDirectory(cacheDir);
+
+  for (const texture of textures) {
+    // 生成缓存文件名（使用哈希避免冲突）
+    const fileHash = hashBuffer(texture.data);
+    const cacheName = `${modId}_${texture.itemName}_${fileHash}.png`;
+    const cachePath = path.join(cacheDir, cacheName);
+
+    // 写入缓存文件
+    try {
+      fs.writeFileSync(cachePath, texture.data);
+    } catch (err) {
+      console.warn(`[JAR_IMPORT] Failed to save texture to cache: ${cachePath}`, err);
+      continue;
+    }
+
+    // 保存到数据库
+    const textureId = `${modId}:${texture.path}`;
+    await db.execute({
+      sql: `INSERT INTO textures (texture_id, mod_id, original_path, cache_name, file_hash, width, height, cached_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(texture_id) DO UPDATE SET
+              cache_name = excluded.cache_name,
+              file_hash = excluded.file_hash,
+              width = excluded.width,
+              height = excluded.height,
+              cached_at = excluded.cached_at`,
+      args: [
+        textureId,
+        modId,
+        texture.path,
+        cacheName,
+        fileHash,
+        texture.width || null,
+        texture.height || null,
+        now,
+      ],
+    });
+  }
+}
 
 export function registerJarHandlers(): void {
   // JAR_IMPORT: Import a JAR file with real parsing
@@ -79,17 +307,42 @@ export function registerJarHandlers(): void {
         },
       });
 
+      // 4.5 使用资源加载器深度解析物品和纹理关联
+      sendProgress(win, {
+        step: 'parsing',
+        percent: 85,
+        filePath,
+        stageLabel: 'Resolving textures...',
+      });
+
+      const { items: resolvedItems, textures: resolvedTextureMap } = parseResourcesFromJar(
+        result.textures.map(t => ({ path: t.path, data: t.data })),
+        result.modInfo.modId,
+        result.models, // 传递已解析的模型
+        (progress) => {
+          sendProgress(win, {
+            step: 'parsing',
+            percent: 85 + Math.round(progress.percent * 0.05),
+            filePath,
+            stageLabel: progress.stageLabel,
+          });
+        }
+      );
+
       // 5. 保存到数据库
       sendProgress(win, {
         step: 'saving',
-        percent: 95,
+        percent: 90,
         filePath,
       });
 
       const db = createGlobalDbClient(appPaths.globalDb);
+      const now = new Date().toISOString();
+      
+      // 初始化内置配方类型
+      await initializeBuiltinRecipeTypes(db);
       
       // 保存模组信息
-      const now = new Date().toISOString();
       await db.execute({
         sql: `INSERT INTO mods (mod_id, mod_name, version, mc_version, source_type, jar_path, parsed_at, item_count, recipe_count)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -114,27 +367,120 @@ export function registerJarHandlers(): void {
         ],
       });
 
-      // 批量保存物品
-      for (const item of result.items) {
-        await db.execute({
-          sql: `INSERT INTO items (item_id, mod_id, display_name_key, display_name, category, is_block, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(item_id) DO UPDATE SET
-                  display_name_key = excluded.display_name_key,
-                  display_name = excluded.display_name,
-                  category = excluded.category,
-                  is_block = excluded.is_block`,
-          args: [
-            item.itemId,
-            item.modId,
-            item.translationKey,
-            item.name,
-            'misc', // TODO: 从 tags 推断
-            item.isBlock ? 1 : 0,
-            now,
-          ],
-        });
+      // 构建物品到标签的映射（用于分类推断）
+      const itemToTagsMap = new Map<string, string[]>();
+      for (const tag of result.tags) {
+        for (const itemId of tag.items) {
+          if (!itemToTagsMap.has(itemId)) {
+            itemToTagsMap.set(itemId, []);
+          }
+          itemToTagsMap.get(itemId)!.push(tag.tagId);
+        }
       }
+
+      // 合并解析结果：新资源加载器的结果优先
+      // 构建解析后的物品ID映射
+      const resolvedItemMap = new Map(resolvedItems.map(item => [item.itemId, item]));
+
+      // 批量保存物品（优先使用新解析结果，回退到原有解析结果）
+      const currentModId = result.modInfo.modId;
+      
+      // 合并物品列表：resolvedItems优先，然后添加result.items中独有的
+      const mergedItems = new Map<string, typeof resolvedItems[0]>();
+      for (const item of resolvedItems) {
+        mergedItems.set(item.itemId, item);
+      }
+      for (const item of result.items) {
+        if (!mergedItems.has(item.itemId) && item.modId === currentModId) {
+          // 转换格式（回退物品可能没有完整的模型信息）
+          const itemName = item.itemId.split(':')[1];
+          const texturePath = item.isBlock 
+            ? `assets/${item.modId}/textures/block/${itemName}.png`
+            : `assets/${item.modId}/textures/item/${itemName}.png`;
+          
+          const fallbackItem: typeof resolvedItems[0] = {
+            itemId: item.itemId,
+            modId: item.modId,
+            name: item.name,
+            translationKey: item.translationKey,
+            isBlock: item.isBlock,
+            displayName: item.name,
+            textureLocations: [{ 
+              namespace: item.modId, 
+              path: item.isBlock ? `block/${itemName}` : `item/${itemName}`,
+              toTexturePath: () => texturePath
+            } as any],
+            resolvedTextures: new Map(),
+          };
+          mergedItems.set(item.itemId, fallbackItem);
+        }
+      }
+      
+      const currentModItems = Array.from(mergedItems.values()).filter(item => item.modId === currentModId);
+      
+      console.log(`[JAR Import] Saving ${currentModItems.length} items for mod ${currentModId}`);
+      
+      for (const item of currentModItems) {
+        // 智能分类推断
+        const tags = itemToTagsMap.get(item.itemId) || [];
+        const category = inferCategoryFromTagsLocal(tags, item.itemId, item.isBlock);
+
+        // 获取材质信息（优先使用resolved结果）
+        // resolvedTextures 是 Map<face, cacheName>，获取第一个值作为默认纹理
+        const resolvedTextureEntries = Array.from(item.resolvedTextures?.entries() || []);
+        const primaryTextureCacheName = resolvedTextureEntries.length > 0 ? resolvedTextureEntries[0][1] : null;
+        
+        // 从textureLocations推断纹理类型
+        const primaryTextureLoc = item.textureLocations?.[0];
+        const inferredTextureType = primaryTextureLoc?.path.includes('/block/') || primaryTextureLoc?.path.startsWith('block/') ? 'block' : 
+                                   primaryTextureLoc?.path.includes('/item/') || primaryTextureLoc?.path.startsWith('item/') ? 'item' : 
+                                   item.isBlock ? 'block' : 'item';
+
+        try {
+          await db.execute({
+            sql: `INSERT INTO items (item_id, mod_id, display_name_key, display_name, category, texture_path, texture_cache_name, texture_type, is_block, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  ON CONFLICT(item_id) DO UPDATE SET
+                    display_name_key = excluded.display_name_key,
+                    display_name = excluded.display_name,
+                    category = excluded.category,
+                    texture_path = excluded.texture_path,
+                    texture_cache_name = excluded.texture_cache_name,
+                    texture_type = excluded.texture_type,
+                    is_block = excluded.is_block`,
+            args: [
+              item.itemId,
+              item.modId,
+              item.translationKey ?? null,
+              item.name,
+              category,
+              primaryTextureLoc?.toTexturePath() || null,
+              primaryTextureCacheName,
+              inferredTextureType,
+              item.isBlock ? 1 : 0,
+              now,
+            ],
+          });
+        } catch (error) {
+          console.warn(`[JAR Import] Failed to save item ${item.itemId}:`, error);
+          // 继续处理其他物品
+        }
+      }
+
+      // 保存标签（只保存当前模组物品的标签）
+      const validItemIds = new Set(currentModItems.map(item => item.itemId));
+      await saveTags(db, result.tags, result.modInfo.modId, validItemIds);
+
+      // 保存配方
+      await saveRecipes(db, result.recipes, result.modInfo.modId, now);
+
+      // 保存翻译 - 使用所有语言
+      if (result.translations && result.translations.size > 0) {
+        await saveTranslations(db, result.translations, result.modInfo.modId);
+      }
+
+      // 保存材质
+      await saveTextures(db, result.textures, result.modInfo.modId, appPaths.textureCache, now);
 
       // 6. 完成
       sendProgress(win, {
@@ -324,4 +670,155 @@ function sendProgress(
   if (!win) return;
   
   win.webContents.send(IPC_CHANNELS.JAR_IMPORT_PROGRESS, progress);
+}
+
+/**
+ * 根据标签智能推断物品分类
+ * 基于 Minecraft 和常见模组的标签命名约定
+ */
+function inferCategoryFromTagsLocal(tags: string[], itemId: string, isBlock: boolean): string {
+  const tagSet = new Set(tags.map(t => t.toLowerCase()));
+  const itemName = itemId.split(':')[1] || '';
+  
+  // 1. 检查食物相关标签
+  const foodTags = [
+    'forge:food', 'forge:foods', 'forge:fruits', 'forge:vegetables', 
+    'forge:grains', 'forge:protein', 'forge:crops', 'c:food', 'c:foods'
+  ];
+  for (const tag of foodTags) {
+    if (tagSet.has(tag)) return 'food';
+  }
+  
+  // 2. 检查工具相关标签
+  const toolTags = [
+    'forge:tools', 'forge:tool', 'minecraft:tools', 
+    'c:tools', 'c:pickaxes', 'c:axes', 'c:shovels', 'c:hoes'
+  ];
+  for (const tag of toolTags) {
+    if (tagSet.has(tag)) return 'tool';
+  }
+  
+  // 3. 检查武器相关标签
+  const weaponTags = [
+    'forge:weapons', 'forge:weapon', 'minecraft:weapons',
+    'c:swords', 'c:axes', 'c:weapons'
+  ];
+  for (const tag of weaponTags) {
+    if (tagSet.has(tag)) return 'weapon';
+  }
+  
+  // 4. 检查护甲相关标签
+  const armorTags = [
+    'forge:armor', 'forge:armors', 'minecraft:armors',
+    'c:helmets', 'c:chestplates', 'c:leggings', 'c:boots'
+  ];
+  for (const tag of armorTags) {
+    if (tagSet.has(tag)) return 'armor';
+  }
+  
+  // 5. 检查材料相关标签
+  const materialTags = [
+    'forge:ingots', 'forge:gems', 'forge:dusts', 'forge:nuggets',
+    'forge:raw_materials', 'c:ingots', 'c:gems', 'c:raw_materials'
+  ];
+  for (const tag of materialTags) {
+    if (tagSet.has(tag)) return 'material';
+  }
+  
+  // 6. 基于物品名称模式推断
+  const namePatterns: Record<string, RegExp[]> = {
+    food: [/bread|apple|meat|soup|stew|pie|cake|cookie|stew|juice|wine|beer/i],
+    tool: [/pickaxe|axe|shovel|hoe|shears|fishing_rod|brush$/i],
+    weapon: [/sword|bow|crossbow|trident|mace$/i],
+    armor: [/_helmet$|_chestplate$|_leggings$|_boots$|armor_/i],
+    block: [/_block$|_planks$|_stairs$|_slab$|_door$|_fence$|_wall$/i],
+  };
+  
+  for (const [cat, patterns] of Object.entries(namePatterns)) {
+    for (const pattern of patterns) {
+      if (pattern.test(itemName)) return cat;
+    }
+  }
+  
+  // 7. 如果是方块且没有其他分类，返回 block
+  if (isBlock) return 'block';
+  
+  // 8. 默认返回 misc
+  return 'misc';
+}
+
+/**
+ * 从模型定义中查找纹理引用
+ * 返回第一个找到的纹理路径（优先 layer0，然后是 all/texture，然后是各面）
+ */
+function findTextureInModel(model: any, modId: string): string | null {
+  if (!model?.textures) return null;
+  
+  const textures = model.textures;
+  
+  // 1. 优先检查 layer0（物品层）
+  if (textures.layer0) {
+    return resolveTextureReference(textures.layer0, textures);
+  }
+  
+  // 2. 检查 all 或 texture（通用纹理）
+  if (textures.all) {
+    return resolveTextureReference(textures.all, textures);
+  }
+  if (textures.texture) {
+    return resolveTextureReference(textures.texture, textures);
+  }
+  
+  // 3. 检查粒子纹理（通常与主纹理相同）
+  if (textures.particle) {
+    return resolveTextureReference(textures.particle, textures);
+  }
+  
+  // 4. 检查各面纹理（方块）
+  const facePriority = ['north', 'side', 'east', 'west', 'up', 'down'];
+  for (const face of facePriority) {
+    if (textures[face]) {
+      return resolveTextureReference(textures[face], textures);
+    }
+  }
+  
+  // 5. 返回第一个可用的纹理
+  const firstKey = Object.keys(textures)[0];
+  if (firstKey) {
+    return resolveTextureReference(textures[firstKey], textures);
+  }
+  
+  return null;
+}
+
+/**
+ * 解析纹理引用（处理 # 引用）
+ */
+function resolveTextureReference(ref: string, allTextures: Record<string, string>): string {
+  // 如果是引用（以 # 开头），递归解析
+  if (ref.startsWith('#')) {
+    const refKey = ref.substring(1);
+    const resolved = allTextures[refKey];
+    if (resolved && resolved !== ref) {
+      return resolveTextureReference(resolved, allTextures);
+    }
+    return ref;
+  }
+  return ref;
+}
+
+/**
+ * 将纹理引用转换为完整路径
+ */
+function resolveTexturePath(textureRef: string, modId: string): string {
+  if (!textureRef) return '';
+  
+  // 如果已经是完整路径
+  if (textureRef.includes(':')) {
+    const [ns, path] = textureRef.split(':');
+    return `assets/${ns}/textures/${path}.png`;
+  }
+  
+  // 默认使用当前模组命名空间
+  return `assets/${modId}/textures/${textureRef}.png`;
 }

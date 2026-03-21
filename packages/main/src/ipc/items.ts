@@ -7,7 +7,58 @@ import type {
   Item 
 } from '@delightify/shared';
 import { appPaths } from '../services/paths';
-import { createGlobalDbClient, schema } from '../services/database';
+import { createGlobalDbClient } from '../services/database';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// 当前语言设置（可以从配置读取，默认为 zh_cn）
+const CURRENT_LANG = 'zh_cn';
+const FALLBACK_LANG = 'en_us';
+
+/**
+ * 获取物品的翻译名称
+ */
+async function getItemTranslations(
+  db: ReturnType<typeof createGlobalDbClient>,
+  displayNameKeys: string[]
+): Promise<Map<string, string>> {
+  const translationMap = new Map<string, string>();
+  
+  if (displayNameKeys.length === 0) {
+    return translationMap;
+  }
+  
+  // 查询当前语言的翻译
+  const transResult = await db.execute({
+    sql: `SELECT key, value FROM translations 
+          WHERE key IN (${displayNameKeys.map(() => '?').join(',')}) 
+          AND lang = ?`,
+    args: [...displayNameKeys, CURRENT_LANG],
+  });
+  
+  for (const row of transResult.rows) {
+    translationMap.set((row as any).key, (row as any).value);
+  }
+  
+  // 查询 fallback 语言的翻译
+  const missingKeys = displayNameKeys.filter(key => !translationMap.has(key));
+  if (missingKeys.length > 0) {
+    const fallbackResult = await db.execute({
+      sql: `SELECT key, value FROM translations 
+            WHERE key IN (${missingKeys.map(() => '?').join(',')}) 
+            AND lang = ?`,
+      args: [...missingKeys, FALLBACK_LANG],
+    });
+    
+    for (const row of fallbackResult.rows) {
+      if (!translationMap.has((row as any).key)) {
+        translationMap.set((row as any).key, (row as any).value);
+      }
+    }
+  }
+  
+  return translationMap;
+}
 
 export function registerItemsHandlers(): void {
   // ITEMS_QUERY: Query items from database with filtering and pagination
@@ -20,27 +71,39 @@ export function registerItemsHandlers(): void {
         search, 
         modId, 
         category, 
+        tag,
+        textureType,
         page = 1, 
         pageSize = 50 
       } = params || {};
 
-      console.log('[Items] Query:', { search, modId, category, page, pageSize });
+      console.log('[Items] Query:', { search, modId, category, tag, page, pageSize });
 
       const db = createGlobalDbClient(appPaths.globalDb);
 
       // 构建查询条件
       const conditions: string[] = [];
+      const args: (string | number)[] = [];
       
       if (search) {
-        conditions.push(`(item_id LIKE '%${search}%' OR display_name LIKE '%${search}%' OR display_name_key LIKE '%${search}%')`);
+        conditions.push(`(item_id LIKE ? OR display_name LIKE ? OR display_name_key LIKE ?)`);
+        const searchPattern = `%${search}%`;
+        args.push(searchPattern, searchPattern, searchPattern);
       }
 
       if (modId) {
-        conditions.push(`mod_id = '${modId}'`);
+        conditions.push(`mod_id = ?`);
+        args.push(modId);
       }
 
       if (category) {
-        conditions.push(`category = '${category}'`);
+        conditions.push(`category = ?`);
+        args.push(category);
+      }
+
+      if (textureType) {
+        conditions.push(`texture_type = ?`);
+        args.push(textureType);
       }
 
       // 获取总数
@@ -49,30 +112,100 @@ export function registerItemsHandlers(): void {
         countQuery += ' WHERE ' + conditions.join(' AND ');
       }
       
-      const countResult = await db.execute(countQuery);
+      const countResult = await db.execute({
+        sql: countQuery,
+        args: args,
+      });
       const total = Number(countResult.rows[0]?.count || 0);
 
-      // 分页查询
+      // 如果有 tag 筛选，需要关联 item_tags 表
       let query = 'SELECT * FROM items';
-      if (conditions.length > 0) {
+      let queryArgs = [...args];
+      
+      if (tag) {
+        query = `SELECT i.* FROM items i 
+                 INNER JOIN item_tags it ON i.item_id = it.item_id 
+                 WHERE it.tag_id = ?`;
+        queryArgs = [tag];
+        
+        // 添加其他条件
+        if (conditions.length > 0) {
+          query += ' AND ' + conditions.join(' AND ');
+          queryArgs.push(...args);
+        }
+      } else if (conditions.length > 0) {
         query += ' WHERE ' + conditions.join(' AND ');
       }
-      query += ' ORDER BY created_at DESC';
-      query += ` LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}`;
+      
+      query += ' ORDER BY display_name ASC, item_id ASC';
+      query += ` LIMIT ? OFFSET ?`;
+      queryArgs.push(pageSize, (page - 1) * pageSize);
 
-      const result = await db.execute(query);
+      const result = await db.execute({
+        sql: query,
+        args: queryArgs,
+      });
 
+      // 获取所有物品的翻译（优化：批量查询）
+      const itemIds = result.rows.map((row: any) => row.item_id);
+      const displayNameKeys = result.rows.map((row: any) => row.display_name_key).filter(Boolean);
+      
+      // 构建翻译映射
+      const translationMap = new Map<string, string>();
+      
+      if (displayNameKeys.length > 0) {
+        // 查询当前语言的翻译
+        const transResult = await db.execute({
+          sql: `SELECT key, value FROM translations 
+                WHERE key IN (${displayNameKeys.map(() => '?').join(',')}) 
+                AND lang = ?`,
+          args: [...displayNameKeys, CURRENT_LANG],
+        });
+        
+        for (const row of transResult.rows) {
+          translationMap.set((row as any).key, (row as any).value);
+        }
+        
+        // 查询 fallback 语言的翻译（对于没有当前语言翻译的）
+        const missingKeys = displayNameKeys.filter(key => !translationMap.has(key));
+        if (missingKeys.length > 0) {
+          const fallbackResult = await db.execute({
+            sql: `SELECT key, value FROM translations 
+                  WHERE key IN (${missingKeys.map(() => '?').join(',')}) 
+                  AND lang = ?`,
+            args: [...missingKeys, FALLBACK_LANG],
+          });
+          
+          for (const row of fallbackResult.rows) {
+            if (!translationMap.has((row as any).key)) {
+              translationMap.set((row as any).key, (row as any).value);
+            }
+          }
+        }
+      }
+      
       // 转换为 Item 类型
-      const items: Item[] = result.rows.map((row: any) => ({
-        itemId: row.item_id,
-        modId: row.mod_id,
-        displayNameKey: row.display_name_key || undefined,
-        displayName: row.display_name || undefined,
-        category: (row.category as Item['category']) || 'misc',
-        texturePath: row.texture_path || undefined,
-        isBlock: Boolean(row.is_block),
-        createdAt: row.created_at,
-      }));
+      const items: Item[] = result.rows.map((row: any) => {
+        const displayNameKey = row.display_name_key;
+        // 优先使用 translations 表的翻译，其次是 items 表存储的 display_name
+        const translatedName = displayNameKey ? translationMap.get(displayNameKey) : undefined;
+        const displayName = translatedName || row.display_name || undefined;
+        
+        return {
+          id: row.id,
+          itemId: row.item_id,
+          modId: row.mod_id,
+          name: row.name,
+          displayNameKey: displayNameKey || undefined,
+          displayName: displayName,
+          category: (row.category as Item['category']) || 'misc',
+          texturePath: row.texture_path || undefined,
+          textureCacheName: row.texture_cache_name || undefined,
+          textureType: (row.texture_type as Item['textureType']) || 'unknown',
+          isBlock: Boolean(row.is_block),
+          createdAt: row.created_at,
+        };
+      });
 
       const queryResult: ItemQueryResult = {
         items,
@@ -106,7 +239,7 @@ export function registerItemsHandlers(): void {
 
       const db = createGlobalDbClient(appPaths.globalDb);
 
-      // 查询物品的材质信息
+      // 查询物品的材质缓存名
       const result = await db.execute({
         sql: 'SELECT texture_cache_name FROM items WHERE item_id = ?',
         args: [itemId],
@@ -117,22 +250,29 @@ export function registerItemsHandlers(): void {
         return { success: true, data: null };
       }
 
-      // 构建材质文件路径
-      const fs = require('fs');
-      const path = require('path');
-
-      // 查找实际的缓存文件
+      // 直接读取缓存文件
       try {
-        const files = fs.readdirSync(appPaths.textureCache);
-        const pattern = new RegExp(`^${row.texture_cache_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_[a-f0-9]{8}\\.png$`);
+        const cachePath = path.join(appPaths.textureCache, row.texture_cache_name);
         
-        for (const file of files) {
-          if (pattern.test(file)) {
-            const fullPath = path.join(appPaths.textureCache, file);
-            // 读取文件并转为 base64
-            const data = fs.readFileSync(fullPath);
-            const base64 = `data:image/png;base64,${data.toString('base64')}`;
-            return { success: true, data: base64 };
+        if (fs.existsSync(cachePath)) {
+          const data = fs.readFileSync(cachePath);
+          const base64 = `data:image/png;base64,${data.toString('base64')}`;
+          return { success: true, data: base64 };
+        }
+        
+        // 如果精确匹配失败，尝试模糊匹配（兼容旧数据）
+        if (fs.existsSync(appPaths.textureCache)) {
+          const files = fs.readdirSync(appPaths.textureCache);
+          const baseName = row.texture_cache_name.replace(/_[a-f0-9]{8,16}\.png$/, '');
+          const pattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_[a-f0-9]{8,16}\\.png$`);
+          
+          for (const file of files) {
+            if (pattern.test(file)) {
+              const fullPath = path.join(appPaths.textureCache, file);
+              const data = fs.readFileSync(fullPath);
+              const base64 = `data:image/png;base64,${data.toString('base64')}`;
+              return { success: true, data: base64 };
+            }
           }
         }
       } catch (error) {
@@ -160,20 +300,33 @@ export function registerItemsHandlers(): void {
       const db = createGlobalDbClient(appPaths.globalDb);
 
       const result = await db.execute({
-        sql: 'SELECT * FROM items WHERE mod_id = ? ORDER BY display_name',
+        sql: 'SELECT * FROM items WHERE mod_id = ? ORDER BY display_name, item_id',
         args: [modId],
       });
+      
+      // 获取翻译
+      const displayNameKeys = result.rows.map((row: any) => row.display_name_key).filter(Boolean);
+      const translationMap = await getItemTranslations(db, displayNameKeys);
 
-      const items: Item[] = result.rows.map((row: any) => ({
-        itemId: row.item_id,
-        modId: row.mod_id,
-        displayNameKey: row.display_name_key || undefined,
-        displayName: row.display_name || undefined,
-        category: (row.category as Item['category']) || 'misc',
-        texturePath: row.texture_path || undefined,
-        isBlock: Boolean(row.is_block),
-        createdAt: row.created_at,
-      }));
+      const items: Item[] = result.rows.map((row: any) => {
+        const displayNameKey = row.display_name_key;
+        const translatedName = displayNameKey ? translationMap.get(displayNameKey) : undefined;
+        
+        return {
+          id: row.id,
+          itemId: row.item_id,
+          modId: row.mod_id,
+          name: row.name,
+          displayNameKey: displayNameKey || undefined,
+          displayName: translatedName || row.display_name || undefined,
+          category: (row.category as Item['category']) || 'misc',
+          texturePath: row.texture_path || undefined,
+          textureCacheName: row.texture_cache_name || undefined,
+          textureType: (row.texture_type as Item['textureType']) || 'unknown',
+          isBlock: Boolean(row.is_block),
+          createdAt: row.created_at,
+        };
+      });
 
       return { success: true, data: items };
     } catch (error) {
@@ -206,6 +359,123 @@ export function registerItemsHandlers(): void {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get tags';
       console.error('[Items] Get tags error:', error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // ITEMS_GET_ALL_TAGS: Get all unique tags with counts
+  ipcMain.handle('items:get-all-tags', async (): Promise<IpcResponse<Array<{ tagId: string; count: number }>>> => {
+    try {
+      const db = createGlobalDbClient(appPaths.globalDb);
+
+      const result = await db.execute(`
+        SELECT tag_id, COUNT(*) as count 
+        FROM item_tags 
+        GROUP BY tag_id 
+        ORDER BY count DESC
+      `);
+
+      const tags = result.rows.map((row: any) => ({
+        tagId: row.tag_id as string,
+        count: Number(row.count),
+      }));
+
+      return { success: true, data: tags };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get tags';
+      console.error('[Items] Get all tags error:', error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // ITEMS_GET_CATEGORIES: Get all categories with counts
+  ipcMain.handle('items:get-categories', async (): Promise<IpcResponse<Array<{ category: string; count: number }>>> => {
+    try {
+      const db = createGlobalDbClient(appPaths.globalDb);
+
+      const result = await db.execute(`
+        SELECT category, COUNT(*) as count 
+        FROM items 
+        GROUP BY category 
+        ORDER BY count DESC
+      `);
+
+      const categories = result.rows.map((row: any) => ({
+        category: (row.category as string) || 'misc',
+        count: Number(row.count),
+      }));
+
+      return { success: true, data: categories };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get categories';
+      console.error('[Items] Get categories error:', error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // ITEMS_GET_DETAIL: Get detailed info for an item (including tags)
+  ipcMain.handle('items:get-detail', async (
+    _event,
+    itemId: string
+  ): Promise<IpcResponse<Item & { tags: string[] } | null>> => {
+    try {
+      if (!itemId || typeof itemId !== 'string') {
+        return { success: false, error: 'Invalid item ID' };
+      }
+
+      const db = createGlobalDbClient(appPaths.globalDb);
+
+      // 获取物品信息
+      const itemResult = await db.execute({
+        sql: 'SELECT * FROM items WHERE item_id = ?',
+        args: [itemId],
+      });
+
+      const row = itemResult.rows[0] as any;
+      if (!row) {
+        return { success: true, data: null };
+      }
+
+      // 获取翻译
+      const displayNameKey = row.display_name_key;
+      let displayName = row.display_name;
+      
+      if (displayNameKey) {
+        const translationMap = await getItemTranslations(db, [displayNameKey]);
+        const translatedName = translationMap.get(displayNameKey);
+        if (translatedName) {
+          displayName = translatedName;
+        }
+      }
+
+      // 获取标签
+      const tagsResult = await db.execute({
+        sql: 'SELECT tag_id FROM item_tags WHERE item_id = ?',
+        args: [itemId],
+      });
+
+      const tags = tagsResult.rows.map((r: any) => r.tag_id as string);
+
+      const item: Item & { tags: string[] } = {
+        id: row.id,
+        itemId: row.item_id,
+        modId: row.mod_id,
+        name: row.name,
+        displayNameKey: displayNameKey || undefined,
+        displayName: displayName || undefined,
+        category: (row.category as Item['category']) || 'misc',
+        texturePath: row.texture_path || undefined,
+        textureCacheName: row.texture_cache_name || undefined,
+        textureType: (row.texture_type as Item['textureType']) || 'unknown',
+        isBlock: Boolean(row.is_block),
+        createdAt: row.created_at,
+        tags,
+      };
+
+      return { success: true, data: item };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get item detail';
+      console.error('[Items] Get detail error:', error);
       return { success: false, error: errorMessage };
     }
   });

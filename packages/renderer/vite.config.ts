@@ -5,6 +5,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // 允许从任何 IP 访问（用于远程调试）
+    host: '0.0.0.0',
+    // 允许来自任何源的请求
+    cors: true,
   },
   build: {
     outDir: 'dist',

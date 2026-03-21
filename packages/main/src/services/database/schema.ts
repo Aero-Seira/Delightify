@@ -74,6 +74,9 @@ export const items = sqliteTable('items', {
   
   // 材质缓存文件名（存储在 textureCache 目录下的文件名）
   textureCacheName: text('texture_cache_name'),
+
+  // 材质类型：item / block / unknown
+  textureType: text('texture_type', { enum: ['item', 'block', 'unknown'] }).default('unknown'),
   
   // 是否为方块（影响渲染方式）
   isBlock: integer('is_block', { mode: 'boolean' }).notNull().default(false),

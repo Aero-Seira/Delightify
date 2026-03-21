@@ -20,6 +20,7 @@ export interface ItemQueryParams {
   modId?: string;
   category?: string;
   tag?: string;
+  textureType?: 'item' | 'block' | 'unknown';
   page?: number;
   pageSize?: number;
 }
@@ -58,6 +59,7 @@ export interface JarImportProgress {
   processedCount?: number;
   totalCount?: number;
   error?: string;
+  stageLabel?: string;
 }
 
 // LLM conversion types

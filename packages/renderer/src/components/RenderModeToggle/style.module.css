@@ -1,0 +1,280 @@
+/* RenderModeToggle 样式 */
+
+.container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.toggleGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.button:hover:not(:disabled) {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+.button.active {
+  background: #4dabf7;
+  border-color: #4dabf7;
+  color: white;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+}
+
+.button svg {
+  flex-shrink: 0;
+}
+
+/* 设置面板样式 */
+
+.panel {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  min-width: 280px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.modeOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modeOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modeOption:hover {
+  border-color: #adb5bd;
+  background: #f8f9fa;
+}
+
+.modeOption.selected {
+  border-color: #4dabf7;
+  background: #e7f5ff;
+}
+
+.modeOption input[type="radio"] {
+  margin-top: 2px;
+}
+
+.modeInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modeTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #212529;
+}
+
+.modeDesc {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.sizeOptions {
+  display: flex;
+  gap: 8px;
+}
+
+.sizeButton {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6c757d;
+  transition: all 0.2s ease;
+}
+
+.sizeButton:hover {
+  border-color: #adb5bd;
+  background: #f8f9fa;
+}
+
+.sizeButton.active {
+  border-color: #4dabf7;
+  background: #e7f5ff;
+  color: #1971c2;
+}
+
+.hint {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: #fff9db;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #f59f00;
+  line-height: 1.5;
+}
+
+.hint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* 暗色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: rgba(45, 45, 45, 0.8);
+  }
+
+  .label {
+    color: #adb5bd;
+  }
+
+  .button {
+    background: #3d3d3d;
+    border-color: #4d4d4d;
+    color: #adb5bd;
+  }
+
+  .button:hover:not(:disabled) {
+    background: #4d4d4d;
+    border-color: #5d5d5d;
+  }
+
+  .button.active {
+    background: #4dabf7;
+    border-color: #4dabf7;
+    color: white;
+  }
+
+  .panel {
+    background: #2d2d2d;
+  }
+
+  .section h4 {
+    color: #f8f9fa;
+  }
+
+  .modeOption {
+    border-color: #4d4d4d;
+  }
+
+  .modeOption:hover {
+    border-color: #5d5d5d;
+    background: #3d3d3d;
+  }
+
+  .modeOption.selected {
+    border-color: #4dabf7;
+    background: rgba(77, 171, 247, 0.2);
+  }
+
+  .modeTitle {
+    color: #f8f9fa;
+  }
+
+  .modeDesc {
+    color: #adb5bd;
+  }
+
+  .sizeButton {
+    background: #3d3d3d;
+    border-color: #4d4d4d;
+    color: #adb5bd;
+  }
+
+  .sizeButton:hover {
+    border-color: #5d5d5d;
+    background: #4d4d4d;
+  }
+
+  .sizeButton.active {
+    border-color: #4dabf7;
+    background: rgba(77, 171, 247, 0.2);
+    color: #74c0fc;
+  }
+
+  .hint {
+    background: rgba(245, 159, 0, 0.1);
+    color: #ffc078;
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 480px) {
+  .container {
+    padding: 6px 8px;
+  }
+
+  .button span {
+    display: none;
+  }
+
+  .button {
+    padding: 6px;
+  }
+
+  .panel {
+    padding: 16px;
+    min-width: auto;
+  }
+}

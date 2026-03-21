@@ -1,6 +1,7 @@
 export * from './mod';
 export * from './item';
 export * from './recipe';
+export * from './tag';
 export * from './texture';
 export * from './translation';
 export * from './config';

@@ -1,20 +1,145 @@
 /**
  * Electron API Mock
  * 用于在浏览器环境中开发和调试
+ * 使用 localStorage 持久化数据
  */
 
 import type { Project, Mod, Item, ItemQueryParams, ItemQueryResult } from '@delightify/shared';
 
-// 模拟数据存储
+// localStorage 键名
+const STORAGE_KEYS = {
+  projects: 'delightify:mock:projects',
+  mods: 'delightify:mock:mods',
+  items: 'delightify:mock:items',
+  currentProject: 'delightify:mock:currentProject',
+};
+
+// 从 localStorage 加载数据
+function loadFromStorage<T>(key: string, defaultValue: T): T {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+// 保存到 localStorage
+function saveToStorage<T>(key: string, value: T): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.warn('[Mock] Failed to save to localStorage:', e);
+  }
+}
+
+// 模拟数据存储（带持久化）
 const mockStorage = {
-  projects: [] as Project[],
-  mods: [] as Mod[],
-  items: [] as Item[],
-  currentProject: null as Project | null,
+  get projects() {
+    return loadFromStorage<Project[]>(STORAGE_KEYS.projects, []);
+  },
+  set projects(value: Project[]) {
+    saveToStorage(STORAGE_KEYS.projects, value);
+  },
+  
+  get mods() {
+    return loadFromStorage<Mod[]>(STORAGE_KEYS.mods, []);
+  },
+  set mods(value: Mod[]) {
+    saveToStorage(STORAGE_KEYS.mods, value);
+  },
+  
+  get items() {
+    return loadFromStorage<Item[]>(STORAGE_KEYS.items, []);
+  },
+  set items(value: Item[]) {
+    saveToStorage(STORAGE_KEYS.items, value);
+  },
+  
+  get currentProject() {
+    return loadFromStorage<Project | null>(STORAGE_KEYS.currentProject, null);
+  },
+  set currentProject(value: Project | null) {
+    saveToStorage(STORAGE_KEYS.currentProject, value);
+  },
 };
 
 // 模拟延迟
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 生成示例物品的纹理数据（使用 Canvas 生成简单的彩色方块）
+function generateMockTexture(itemId: string): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  
+  // 使用 itemId 生成一致的随机颜色
+  const hash = itemId.split('').reduce((a, b) => {
+    a = ((a << 5) - a) + b.charCodeAt(0);
+    return a & a;
+  }, 0);
+  
+  const hue = Math.abs(hash % 360);
+  const color = `hsl(${hue}, 70%, 60%)`;
+  const darkColor = `hsl(${hue}, 70%, 40%)`;
+  
+  // 绘制简单的方块纹理
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 64, 64);
+  
+  // 添加一些细节
+  ctx.fillStyle = darkColor;
+  ctx.fillRect(0, 0, 64, 8);
+  ctx.fillRect(0, 56, 64, 8);
+  ctx.fillRect(0, 0, 8, 64);
+  ctx.fillRect(56, 0, 8, 64);
+  
+  // 添加高光
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(8, 8, 48, 8);
+  ctx.fillRect(8, 8, 8, 48);
+  
+  return canvas.toDataURL('image/png');
+}
+
+// 生成示例物品数据
+function generateMockItems(modId: string, count: number = 50): Item[] {
+  const categories = ['food', 'tool', 'weapon', 'armor', 'block', 'material', 'misc'] as const;
+  const items: Item[] = [];
+  
+  const names = [
+    '苹果', '面包', '胡萝卜', '土豆', '番茄', '洋葱', '小麦', '大米',
+    '铁镐', '铁斧', '铁剑', '铁锹', '铁锄', '弓', '箭',
+    '石头', '泥土', '木头', '沙子', '玻璃', '砖块',
+    '金锭', '银锭', '铜锭', '钻石', '红宝石',
+    '药水', '书', '地图', '指南针', '时钟',
+  ];
+  
+  for (let i = 0; i < count; i++) {
+    const name = names[i % names.length] + (i >= names.length ? `_${i}` : '');
+    const category = categories[i % categories.length];
+    const isBlock = category === 'block' || i % 3 === 0;
+    
+    items.push({
+      itemId: `${modId}:${name.toLowerCase().replace(/\s+/g, '_')}`,
+      modId,
+      name: name.toLowerCase().replace(/\s+/g, '_'),
+      displayName: name,
+      displayNameKey: `${isBlock ? 'block' : 'item'}.${modId}.${name.toLowerCase().replace(/\s+/g, '_')}`,
+      category,
+      isBlock,
+      textureType: isBlock ? 'block' : 'item',
+      textureCacheName: `mock_${modId}_${name.toLowerCase().replace(/\s+/g, '_')}_12345678.png`,
+      createdAt: new Date().toISOString(),
+    });
+  }
+  
+  return items;
+}
 
 /**
  * Mock Electron API
@@ -24,6 +149,28 @@ export const mockElectronAPI = {
   // ========== Project Management ==========
   projectList: async () => {
     await delay(300);
+    // 如果没有项目，初始化一个
+    const projects = mockStorage.projects;
+    if (projects.length === 0) {
+      const defaultProject: Project = {
+        id: 'proj_web_demo',
+        name: 'Web 调试项目',
+        description: '用于浏览器调试的示例项目',
+        path: '/mock/path/to/web/demo',
+        mcVersion: '1.20.1',
+        modLoader: 'forge',
+        modLoaderVersion: '47.2.0',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        lastOpenedAt: new Date().toISOString(),
+        isFavorite: true,
+        totalMods: 3,
+        totalItems: 150,
+        totalRecipes: 89,
+      };
+      mockStorage.projects = [defaultProject];
+      mockStorage.currentProject = defaultProject;
+    }
     return { success: true, data: mockStorage.projects, total: mockStorage.projects.length };
   },
 
@@ -58,7 +205,7 @@ export const mockElectronAPI = {
       totalItems: 0,
       totalRecipes: 0,
     };
-    mockStorage.projects.push(newProject);
+    mockStorage.projects = [...mockStorage.projects, newProject];
     return { success: true, data: newProject };
   },
 
@@ -69,19 +216,24 @@ export const mockElectronAPI = {
 
   projectUpdate: async (projectId: string, data: any) => {
     await delay(200);
-    const index = mockStorage.projects.findIndex(p => p.id === projectId);
+    const projects = mockStorage.projects;
+    const index = projects.findIndex(p => p.id === projectId);
     if (index >= 0) {
-      mockStorage.projects[index] = { ...mockStorage.projects[index], ...data };
-      return { success: true, data: mockStorage.projects[index] };
+      const updated = { ...projects[index], ...data };
+      projects[index] = updated;
+      mockStorage.projects = projects;
+      return { success: true, data: updated };
     }
     return { success: false, error: 'Project not found' };
   },
 
   projectDelete: async (projectId: string) => {
     await delay(300);
-    const index = mockStorage.projects.findIndex(p => p.id === projectId);
+    const projects = mockStorage.projects;
+    const index = projects.findIndex(p => p.id === projectId);
     if (index >= 0) {
-      mockStorage.projects.splice(index, 1);
+      projects.splice(index, 1);
+      mockStorage.projects = projects;
       return { success: true };
     }
     return { success: false, error: 'Project not found' };
@@ -89,7 +241,7 @@ export const mockElectronAPI = {
 
   selectDirectory: async () => {
     await delay(200);
-    // 模拟用户选择目录
+    // 在浏览器中模拟目录选择
     return {
       canceled: false,
       filePaths: ['/mock/path/to/modpack'],
@@ -111,17 +263,26 @@ export const mockElectronAPI = {
     await delay(1000);
     // 模拟导入进度
     const mockMod: Mod = {
-      modId: 'farmersdelight',
-      modName: "Farmer's Delight",
-      version: '1.20.1-1.2.0',
+      modId: 'demo_mod',
+      modName: '演示模组',
+      version: '1.20.1-1.0.0',
       mcVersion: '1.20.1',
       sourceType: 'jar',
       jarPath: filePath,
       parsedAt: new Date().toISOString(),
-      itemCount: 127,
-      recipeCount: 89,
+      itemCount: 50,
+      recipeCount: 25,
     };
-    mockStorage.mods.push(mockMod);
+    
+    // 添加到模组列表
+    const mods = mockStorage.mods;
+    mods.push(mockMod);
+    mockStorage.mods = mods;
+    
+    // 生成并添加物品
+    const newItems = generateMockItems(mockMod.modId, 50);
+    mockStorage.items = [...mockStorage.items, ...newItems];
+    
     return {
       success: true,
       data: {
@@ -131,17 +292,21 @@ export const mockElectronAPI = {
         modName: mockMod.modName,
         itemCount: mockMod.itemCount,
         recipeCount: mockMod.recipeCount,
-        tagCount: 45,
-        textureCount: 200,
+        tagCount: 15,
+        textureCount: 50,
       },
     };
   },
 
   jarDelete: async (modId: string) => {
     await delay(200);
-    const index = mockStorage.mods.findIndex(m => m.modId === modId);
+    const mods = mockStorage.mods;
+    const index = mods.findIndex(m => m.modId === modId);
     if (index >= 0) {
-      mockStorage.mods.splice(index, 1);
+      mods.splice(index, 1);
+      mockStorage.mods = mods;
+      // 同时删除相关物品
+      mockStorage.items = mockStorage.items.filter(i => i.modId !== modId);
       return { success: true, data: true };
     }
     return { success: false, error: 'Mod not found' };
@@ -177,13 +342,23 @@ export const mockElectronAPI = {
   // ========== Items ==========
   itemsQuery: async (params: ItemQueryParams) => {
     await delay(300);
-    const { search, modId, category, page = 1, pageSize = 50 } = params;
+    
+    // 如果没有物品，生成一些示例数据
+    if (mockStorage.items.length === 0) {
+      mockStorage.items = [
+        ...generateMockItems('farmersdelight', 30),
+        ...generateMockItems('minecraft', 20),
+      ];
+    }
+    
+    const { search, modId, category, tag, textureType, page = 1, pageSize = 50 } = params;
     
     let items = mockStorage.items;
     if (search) {
+      const searchLower = search.toLowerCase();
       items = items.filter(i => 
-        i.itemId.includes(search) || 
-        i.displayName?.includes(search)
+        i.itemId.toLowerCase().includes(searchLower) || 
+        (i.displayName && i.displayName.toLowerCase().includes(searchLower))
       );
     }
     if (modId) {
@@ -192,6 +367,10 @@ export const mockElectronAPI = {
     if (category) {
       items = items.filter(i => i.category === category);
     }
+    if (textureType) {
+      items = items.filter(i => i.textureType === textureType);
+    }
+    // 注意：mock 中不实现 tag 过滤
 
     const start = (page - 1) * pageSize;
     const paginatedItems = items.slice(start, start + pageSize);
@@ -209,8 +388,80 @@ export const mockElectronAPI = {
 
   itemsGetTexture: async (itemId: string) => {
     await delay(100);
-    // 返回一个 1x1 像素的透明 PNG
-    return { success: true, data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' };
+    // 为每个物品生成一致的纹理
+    const textureData = generateMockTexture(itemId);
+    return { success: true, data: textureData || null };
+  },
+
+  itemsGetAllTags: async () => {
+    await delay(200);
+    return {
+      success: true,
+      data: [
+        { tagId: 'forge:vegetables', count: 12 },
+        { tagId: 'forge:fruits', count: 8 },
+        { tagId: 'forge:grains', count: 6 },
+        { tagId: 'forge:protein', count: 10 },
+        { tagId: 'minecraft:logs', count: 15 },
+      ],
+    };
+  },
+
+  itemsGetCategories: async () => {
+    await delay(200);
+    return {
+      success: true,
+      data: [
+        { category: 'food', count: 45 },
+        { category: 'tool', count: 32 },
+        { category: 'material', count: 28 },
+        { category: 'block', count: 15 },
+        { category: 'misc', count: 7 },
+      ],
+    };
+  },
+
+  itemsGetDetail: async (itemId: string) => {
+    await delay(200);
+    const item = mockStorage.items.find(i => i.itemId === itemId);
+    if (!item) {
+      return { success: true, data: null };
+    }
+    return {
+      success: true,
+      data: {
+        ...item,
+        tags: ['forge:vegetables', 'farmersdelight:ingredients'],
+      },
+    };
+  },
+
+  modsQuery: async () => {
+    await delay(200);
+    const mods = mockStorage.mods;
+    return {
+      success: true,
+      data: mods.map(mod => ({
+        modId: mod.modId,
+        name: mod.modName,
+        itemCount: mod.itemCount || 0,
+      })),
+    };
+  },
+
+  tagsQuery: async () => {
+    await delay(200);
+    return {
+      success: true,
+      data: [
+        'forge:vegetables',
+        'forge:fruits',
+        'forge:grains',
+        'forge:protein',
+        'minecraft:logs',
+        'minecraft:planks',
+      ],
+    };
   },
 
   // ========== Recipes ==========
@@ -258,53 +509,157 @@ export const mockElectronAPI = {
   onLlmConvertProgress: (callback: (progress: any) => void) => {
     return () => {};
   },
+
+  // ========== Shell operations ==========
+  openExternal: async (url: string) => {
+    window.open(url, '_blank');
+  },
+
+  // ========== Debug / Database Management ==========
+  debugDbTables: async () => {
+    await delay(200);
+    return {
+      success: true,
+      data: [
+        { name: 'mods', rowCount: mockStorage.mods.length },
+        { name: 'items', rowCount: mockStorage.items.length },
+        { name: 'recipes', rowCount: 10 },
+        { name: 'textures', rowCount: 15 },
+        { name: 'translations', rowCount: 50 },
+        { name: 'item_tags', rowCount: 30 },
+      ],
+    };
+  },
+
+  debugDbQuery: async (sql: string) => {
+    await delay(300);
+    return {
+      success: true,
+      data: [
+        { item_id: 'farmersdelight:tomato', display_name: '番茄', category: 'food' },
+        { item_id: 'farmersdelight:onion', display_name: '洋葱', category: 'food' },
+      ],
+    };
+  },
+
+  debugDbDeleteMod: async (modId: string) => {
+    await delay(300);
+    return {
+      success: true,
+      data: {
+        modId,
+        deleted: { items: 20, recipes: 10, textures: 15 },
+      },
+    };
+  },
+
+  debugDbClearAll: async () => {
+    await delay(500);
+    // 清除 localStorage
+    mockStorage.projects = [];
+    mockStorage.mods = [];
+    mockStorage.items = [];
+    mockStorage.currentProject = null;
+    return {
+      success: true,
+      data: {
+        tables: { mods: 0, items: 0, recipes: 0 },
+        deletedTextures: 0,
+      },
+    };
+  },
+
+  debugCacheInfo: async () => {
+    await delay(200);
+    return {
+      success: true,
+      data: {
+        cacheDir: '/mock/cache/textures',
+        fileCount: 15,
+        totalSizeFormatted: '2.34 MB',
+      },
+    };
+  },
+
+  debugDbPath: async () => {
+    await delay(100);
+    return {
+      success: true,
+      data: {
+        globalDb: '/mock/data/global.db',
+        textureCache: '/mock/cache/textures',
+        projectsJson: '/mock/data/projects.json',
+      },
+    };
+  },
+
+  debugGetItemDetail: async (itemId: string) => {
+    await delay(200);
+    return {
+      success: true,
+      data: {
+        item: {
+          item_id: itemId,
+          mod_id: 'farmersdelight',
+          display_name_key: `item.farmersdelight.${itemId.split(':')[1]}`,
+          display_name: 'Mock Item',
+          category: 'food',
+        },
+        translations: [
+          { lang: 'en_us', value: 'Mock Item' },
+          { lang: 'zh_cn', value: '模拟物品' },
+        ],
+        tags: ['forge:food', 'farmersdelight:ingredients'],
+      },
+    };
+  },
 };
 
 // 初始化一些模拟数据
 function initMockData() {
-  // 添加示例项目
-  mockStorage.projects.push({
-    id: 'proj_1',
-    name: '示例整合包',
-    description: '这是一个示例项目',
-    path: '/mock/path/to/modpack',
-    mcVersion: '1.20.1',
-    modLoader: 'forge',
-    modLoaderVersion: '47.2.0',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastOpenedAt: new Date().toISOString(),
-    isFavorite: true,
-    totalMods: 5,
-    totalItems: 127,
-    totalRecipes: 89,
-  });
-
-  // 添加示例模组
-  mockStorage.mods.push({
-    modId: 'farmersdelight',
-    modName: "Farmer's Delight",
-    version: '1.20.1-1.2.0',
-    mcVersion: '1.20.1',
-    sourceType: 'jar',
-    jarPath: '/mock/mods/farmersdelight.jar',
-    parsedAt: new Date().toISOString(),
-    itemCount: 127,
-    recipeCount: 89,
-  });
-
-  // 添加示例物品
-  for (let i = 0; i < 20; i++) {
-    mockStorage.items.push({
-      itemId: `farmersdelight:item_${i}`,
-      modId: 'farmersdelight',
-      displayName: `物品 ${i}`,
-      displayNameKey: `item.farmersdelight.item_${i}`,
-      category: i % 3 === 0 ? 'food' : i % 3 === 1 ? 'tool' : 'material',
-      isBlock: i % 2 === 0,
+  // 只有在没有任何数据时才初始化
+  if (mockStorage.projects.length === 0) {
+    mockStorage.projects = [{
+      id: 'proj_web_demo',
+      name: 'Web 调试项目',
+      description: '用于浏览器调试的示例项目',
+      path: '/mock/path/to/web/demo',
+      mcVersion: '1.20.1',
+      modLoader: 'forge',
+      modLoaderVersion: '47.2.0',
       createdAt: new Date().toISOString(),
-    } as Item);
+      updatedAt: new Date().toISOString(),
+      lastOpenedAt: new Date().toISOString(),
+      isFavorite: true,
+      totalMods: 3,
+      totalItems: 150,
+      totalRecipes: 89,
+    }];
+  }
+
+  if (mockStorage.mods.length === 0) {
+    mockStorage.mods = [{
+      modId: 'farmersdelight',
+      modName: "Farmer's Delight",
+      version: '1.20.1-1.2.0',
+      mcVersion: '1.20.1',
+      sourceType: 'jar',
+      jarPath: '/mock/mods/farmersdelight.jar',
+      parsedAt: new Date().toISOString(),
+      itemCount: 50,
+      recipeCount: 25,
+    }];
+  }
+
+  if (mockStorage.items.length === 0) {
+    mockStorage.items = [
+      ...generateMockItems('farmersdelight', 30),
+      ...generateMockItems('minecraft', 20),
+    ];
   }
 }
 
-initMockData();
+// 延迟初始化，确保在浏览器环境中执行
+if (typeof window !== 'undefined') {
+  setTimeout(initMockData, 0);
+}

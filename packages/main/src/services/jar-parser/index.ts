@@ -4,10 +4,11 @@
  */
 
 import { createZipReader, extractModInfo, extractModIdFromJar } from './zip-reader';
-import { parseLangFilesFromJar } from './lang-parser';
+import { parseLangFilesFromJar, parseAllTranslations } from './lang-parser';
 import { parseTagFilesFromJar, extractItemsFromTags, inferCategoryFromTags, buildItemToTagsMap } from './tag-parser';
 import { parseRecipeFilesFromJar, extractItemsFromRecipes, getRecipeTypeDisplayName } from './recipe-parser';
 import { extractTexturesFromJar, type TextureExtractionOptions } from './texture-extractor';
+import { parseModelFilesFromJar } from './model-parser';
 import type { 
   JarParseResult, 
   ParserOptions,
@@ -23,6 +24,7 @@ export * from './lang-parser';
 export * from './tag-parser';
 export * from './recipe-parser';
 export * from './texture-extractor';
+export * from './resource-loader';
 
 /**
  * 扩展 ParserOptions，添加缓存目录
@@ -95,6 +97,11 @@ export async function parseJarFile(
     const langResult = parseLang 
       ? parseLangFilesFromJar(entries, modId, onProgress)
       : { langCode: 'en_us', translations: new Map(), items: [] };
+    
+    // 4.1 解析所有语言的翻译
+    const allTranslations = parseLang
+      ? parseAllTranslations(entries, modId)
+      : new Map();
 
     // 5. 解析 Tag 文件（策略二）
     const tags = parseTags
@@ -121,10 +128,13 @@ export async function parseJarFile(
       );
     }
 
-    // 8. 合并物品列表
-    const allItems = mergeItems(langResult.items, tags, recipes, modId);
+    // 8. 解析模型文件（用于关联方块物品到 block 纹理）
+    const models = parseModelFilesFromJar(entries, modId, onProgress);
 
-    // 9. 构建结果
+    // 9. 合并物品列表
+    const allItems = mergeItems(langResult.items, tags, recipes, modId, models, textures);
+
+    // 10. 构建结果
     const result: JarParseResult = {
       modInfo: {
         modId,
@@ -142,6 +152,8 @@ export async function parseJarFile(
         itemName: t.itemName,
         data: t.data,
       })),
+      models,
+      translations: allTranslations,
       stats: {
         itemCount: allItems.length,
         tagCount: tags.length,
@@ -169,12 +181,15 @@ export async function parseJarFile(
  * - Lang 解析提供基础名称
  * - Tags 提供分类信息
  * - Recipes 补充遗漏的物品
+ * - Models 帮助关联 block 纹理
  */
 function mergeItems(
   langItems: ParsedItem[],
   tags: Array<{ tagId: string; items: string[] }>,
   recipes: Array<{ recipeId: string; recipeType: string; rawJson: string; inputs: Array<{ id: string; isTag: boolean; slot: number }>; outputs: Array<{ itemId: string; slot: number; count: number }> }>,
-  modId: string
+  modId: string,
+  models?: Map<string, any>,
+  textures?: Array<{ path: string; modId: string; itemName: string }>
 ): ParsedItem[] {
   const itemMap = new Map<string, ParsedItem>();
 
@@ -187,7 +202,6 @@ function mergeItems(
   const tagItems = extractItemsFromTags(tags.map(t => ({ ...t, replace: false })), modId);
   for (const item of tagItems) {
     if (!itemMap.has(item.itemId)) {
-      // 如果 Lang 中已存在，更新分类
       itemMap.set(item.itemId, item);
     }
   }
@@ -203,7 +217,7 @@ function mergeItems(
         itemMap.set(itemId, {
           itemId,
           modId,
-          name, // 暂时使用 ID 作为名称
+          name,
           isBlock: false,
           translationKey: `item.${modId}.${name}`,
         });
@@ -211,12 +225,63 @@ function mergeItems(
     }
   }
 
-  // 4. 使用 Tags 推断分类
+  // 4. 使用 Tags 和 Models 推断分类
   const itemToTagsMap = buildItemToTagsMap(tags.map(t => ({ ...t, replace: false })));
+  
   for (const item of itemMap.values()) {
+    const itemName = item.itemId.split(':')[1];
+    
     // 根据翻译键推断 isBlock
     if (item.translationKey.startsWith('block.')) {
       item.isBlock = true;
+    }
+    
+    // 根据模型推断 isBlock（如果物品使用 block 模型）
+    if (models) {
+      const itemModelPath = `assets/${modId}/models/item/${itemName}.json`;
+      const blockModelPath = `assets/${modId}/models/block/${itemName}.json`;
+      
+      // 如果存在 item 模型，检查它是否引用 block 纹理
+      if (models.has(itemModelPath)) {
+        const model = models.get(itemModelPath);
+        // 如果父模型是 block 类型，标记为方块
+        if (model?.parent?.includes('block')) {
+          item.isBlock = true;
+        }
+        // 如果纹理引用包含 block/，标记为方块
+        if (model?.textures) {
+          for (const texPath of Object.values(model.textures)) {
+            if (typeof texPath === 'string' && texPath.includes('block/')) {
+              item.isBlock = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      // 如果不存在 item 模型但存在 block 模型，这是纯方块
+      if (!models.has(itemModelPath) && models.has(blockModelPath)) {
+        item.isBlock = true;
+      }
+    }
+    
+    // 根据纹理存在性推断（如果没有被标记为方块）
+    if (!item.isBlock && textures) {
+      const hasBlockTexture = textures.some(t => 
+        t.modId === modId && 
+        t.itemName === itemName &&
+        t.path.includes('/block/')
+      );
+      const hasItemTexture = textures.some(t => 
+        t.modId === modId && 
+        t.itemName === itemName &&
+        t.path.includes('/item/')
+      );
+      
+      // 如果有 block 纹理但没有 item 纹理，标记为方块
+      if (hasBlockTexture && !hasItemTexture) {
+        item.isBlock = true;
+      }
     }
   }
 

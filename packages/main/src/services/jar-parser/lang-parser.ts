@@ -222,3 +222,45 @@ export function formatDisplayName(name: string): string {
   // 去除 Minecraft 颜色代码 §[0-9a-fk-or]
   return name.replace(/§[0-9a-fk-or]/gi, '').trim();
 }
+
+/**
+ * 解析所有语言的翻译
+ * @param entries JAR 条目列表
+ * @param expectedModId 期望的模组 ID
+ * @returns Map<key, Map<lang, value>>
+ */
+export function parseAllTranslations(
+  entries: Array<{ path: string; data: Buffer }>,
+  expectedModId?: string
+): Map<string, Map<string, string>> {
+  const translations = new Map<string, Map<string, string>>();
+
+  for (const entry of entries) {
+    // 匹配 assets/{modid}/lang/{lang_code}.json
+    const match = entry.path.match(/^assets\/([a-z0-9_]+)\/lang\/([a-z_]+)\.json$/i);
+    if (!match) continue;
+
+    const [, modId, langCode] = match;
+    
+    // 过滤非期望模组的 lang 文件
+    if (expectedModId && modId !== expectedModId) {
+      continue;
+    }
+
+    try {
+      const content = entry.data.toString('utf-8');
+      const data = JSON.parse(content) as Record<string, string>;
+
+      for (const [key, value] of Object.entries(data)) {
+        if (!translations.has(key)) {
+          translations.set(key, new Map());
+        }
+        translations.get(key)!.set(langCode, value);
+      }
+    } catch (error) {
+      console.warn(`[LangParser] Failed to parse lang file ${entry.path}:`, error);
+    }
+  }
+
+  return translations;
+}

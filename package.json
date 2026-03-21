@@ -1,7 +1,7 @@
 {
   "name": "delightify",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "scripts": {
     "dev": "pnpm run build && concurrently \"pnpm:dev:renderer\" \"pnpm:dev:main\" \"pnpm:dev:electron\"",
     "dev:safe": "pnpm run build && concurrently \"pnpm:dev:renderer\" \"pnpm:dev:main\" \"pnpm:dev:electron:safe\"",
