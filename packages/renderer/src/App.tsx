@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useI18n } from './i18n';
 import { initializeTheme } from './theme';
 import Sidebar from './components/Sidebar';
@@ -81,8 +81,8 @@ export default function App(): React.ReactElement {
   }, []);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppContent />
-    </BrowserRouter>
+    </HashRouter>
   );
 }

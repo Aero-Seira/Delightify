@@ -30,6 +30,8 @@
 
 #### 安装
 
+**通用安装（macOS/Linux/WSL）:**
+
 ```bash
 # 克隆仓库
 git clone https://github.com/Aero-Seira/Delightify.git
@@ -42,6 +44,23 @@ pnpm install
 # 安装 ollama: https://ollama.ai
 ollama pull qwen2.5:7b
 ```
+
+**Windows 安装:**
+
+```powershell
+# 克隆仓库
+git clone https://github.com/Aero-Seira/Delightify.git
+cd Delightify
+
+# 方式1：使用 PowerShell 自动设置脚本
+.\scripts\setup-windows.ps1
+
+# 方式2：手动安装
+pnpm install
+pnpm build
+```
+
+详见 [Windows 构建指南](./docs/windows-build.md)
 
 #### 配置 LLM
 

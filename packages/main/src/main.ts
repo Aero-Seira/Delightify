@@ -5,23 +5,44 @@ import { appPaths } from './services/paths';
 import { createGlobalDbClient, closeAllConnections, schema } from './services/database';
 
 // 检测是否为开发环境
-// 使用 NODE_ENV，因为在应用 ready 之前 app.isPackaged 可能不可用
-const isDev = process.env.NODE_ENV === 'development';
+// 使用多种方式检测，确保在打包后的应用中能正确识别
+// 1. 检查是否存在 src 目录（开发模式特征）
+// 2. 检查 NODE_ENV
+// 3. 在应用 ready 后使用 app.isPackaged
+const fs = require('fs');
+
+// 检查是否在开发模式（通过检查是否存在源码目录特征）
+const isDevMode = (): boolean => {
+  // 如果 NODE_ENV 明确设置为 development，则是开发模式
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+  
+  // 检查是否在源码目录中运行（有 src 目录）
+  const hasSrcDir = fs.existsSync(path.join(__dirname, '../src'));
+  
+  // 检查是否存在 renderer 源码目录（开发模式特征）
+  const hasRendererSrc = fs.existsSync(path.join(__dirname, '../../renderer/src'));
+  
+  return hasSrcDir || hasRendererSrc;
+};
+
+let isDev = isDevMode();
 
 console.log('[Main] NODE_ENV:', process.env.NODE_ENV);
-console.log('[Main] isDev:', isDev);
+console.log('[Main] isDev (initial):', isDev);
+console.log('[Main] __dirname:', __dirname);
 
 /**
  * 获取生产环境 index.html 的路径
  * 在打包后的应用中，renderer/dist 会被复制到 main/dist/renderer
  */
 function getProductionIndexPath(): string {
-  const fs = require('fs');
-  
   // 在 Electron 中，process.resourcesPath 指向 Resources 目录
   // macOS: Delightify.app/Contents/Resources
   // Windows: resources
   const resourcesPath = process.resourcesPath;
+  const appPath = app.getAppPath();
   
   // asar 包内的路径（当 asar 启用时，Electron 会自动处理 asar 路径）
   // __dirname 在 asar 内指向 dist 目录
@@ -31,34 +52,59 @@ function getProductionIndexPath(): string {
   // 开发模式路径
   const devPath = path.join(__dirname, '..', '..', 'renderer', 'dist', 'index.html');
   
-  // 尝试多个可能的路径
+  // Windows 便携版特定路径
+  const winPortablePaths = [
+    path.join(resourcesPath, 'app.asar', 'dist', 'renderer', 'index.html'),
+    path.join(resourcesPath, 'app', 'dist', 'renderer', 'index.html'),
+    path.join(appPath, 'dist', 'renderer', 'index.html'),
+    path.join(process.cwd(), 'dist', 'renderer', 'index.html'),
+  ];
+  
+  // 尝试多个可能的路径（按优先级排序）
   const paths = [
     { path: asarRendererPath, name: 'asar-renderer' },
     { path: asarDistPath, name: 'asar-dist' },
+    ...winPortablePaths.map((p, i) => ({ path: p, name: `win-portable-${i + 1}` })),
     { path: devPath, name: 'dev' },
-    { path: path.join(resourcesPath, 'app.asar', 'dist', 'renderer', 'index.html'), name: 'resources-asar' },
-    { path: path.join(app.getAppPath(), 'dist', 'renderer', 'index.html'), name: 'appPath' },
   ];
   
   console.log('[Main] Searching for index.html...');
   console.log('[Main] __dirname:', __dirname);
   console.log('[Main] process.resourcesPath:', resourcesPath);
-  console.log('[Main] app.getAppPath():', app.getAppPath());
+  console.log('[Main] app.getAppPath():', appPath);
+  console.log('[Main] process.cwd():', process.cwd());
+  console.log('[Main] platform:', process.platform);
   
   for (const { path: testPath, name } of paths) {
-    console.log(`[Main] Checking ${name}:`, testPath);
-    if (fs.existsSync(testPath)) {
+    const exists = fs.existsSync(testPath);
+    console.log(`[Main] Checking ${name}:`, testPath, exists ? '✓ EXISTS' : '✗ NOT FOUND');
+    if (exists) {
       console.log(`[Main] ✓ Found index.html at (${name}):`, testPath);
       return testPath;
     }
   }
   
-  // 调试：列出 __dirname 内容
+  // 调试：尝试列出各种目录的内容
   console.warn('[Main] ✗ Could not find index.html in any location');
-  try {
-    console.warn('[Main] Contents of __dirname:', fs.readdirSync(__dirname));
-  } catch (e) {
-    console.warn('[Main] Error listing __dirname:', e);
+  
+  const dirsToCheck = [
+    { path: __dirname, name: '__dirname' },
+    { path: path.dirname(__dirname), name: 'parent of __dirname' },
+    { path: resourcesPath, name: 'resourcesPath' },
+    { path: appPath, name: 'appPath' },
+  ];
+  
+  for (const { path: dirPath, name } of dirsToCheck) {
+    try {
+      if (fs.existsSync(dirPath)) {
+        const contents = fs.readdirSync(dirPath);
+        console.warn(`[Main] Contents of ${name} (${dirPath}):`, contents);
+      } else {
+        console.warn(`[Main] ${name} does not exist:`, dirPath);
+      }
+    } catch (e) {
+      console.warn(`[Main] Error listing ${name}:`, (e as Error).message);
+    }
   }
   
   // 默认返回第一个路径
@@ -116,7 +162,6 @@ function createWindow(): void {
     console.log('[Main] Loading index.html from:', indexPath);
     
     // 检查文件是否存在
-    const fs = require('fs');
     const fileExists = fs.existsSync(indexPath);
     console.log('[Main] File exists:', fileExists);
     
@@ -201,6 +246,11 @@ async function initializeApp(): Promise<void> {
 app.whenReady().then(async () => {
   // 0. 先初始化路径（必须在 app.whenReady() 之后）
   appPaths.initialize();
+  
+  // 更新 isDev 状态（现在 app.isPackaged 可用了）
+  isDev = !app.isPackaged;
+  console.log('[Main] app.isPackaged:', app.isPackaged);
+  console.log('[Main] isDev (final):', isDev);
   
   // 1. 初始化应用（目录、数据库等）
   await initializeApp();

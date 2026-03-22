@@ -39,6 +39,29 @@
 - Node.js >= 18.0.0
 - pnpm >= 9.0.0
 
+### 跨平台兼容性 / Cross-Platform Compatibility
+
+项目已配置支持 Windows、macOS、Linux 三大平台：
+
+| 平台 | 支持的 Shell | 备注 |
+|------|-------------|------|
+| Windows | PowerShell 5.1+, PowerShell 7.x, CMD | 完整支持 |
+| macOS | bash, zsh | 完整支持 |
+| Linux | bash, zsh | 完整支持 |
+
+**Windows 用户快速开始：**
+```powershell
+# 使用 PowerShell 设置脚本
+.\scripts\setup-windows.ps1
+
+# 或手动安装
+pnpm install
+pnpm build
+pnpm dev
+```
+
+详见 [Windows 构建指南](./docs/windows-build.md)
+
 ---
 
 ## 项目结构 / Project Structure
@@ -101,7 +124,7 @@ Delightify/
 ## 构建与开发命令 / Build & Development Commands
 
 ```bash
-# 安装依赖
+# 安装依赖 (所有平台)
 pnpm install
 
 # 启动开发模式（前端热重载 + 主进程监听）
@@ -115,6 +138,18 @@ pnpm typecheck
 
 # 清理构建产物
 pnpm clean
+```
+
+**Windows 特定命令:**
+```powershell
+# Windows 打包
+pnpm dist:win
+
+# Windows 打包（仅目录，不生成安装程序）
+pnpm dist:win:dir
+
+# 安全模式开发（禁用 GPU 加速）
+pnpm dev:safe
 ```
 
 ### Turborepo 任务依赖
@@ -256,6 +291,40 @@ GitHub Actions 工作流（`.github/workflows/typecheck.yml`）：
 - 缓存 pnpm 模块
 - 执行 `pnpm typecheck`
 
+### 跨平台构建实现
+
+项目使用以下工具确保跨平台兼容性：
+
+| 工具 | 用途 | 版本 |
+|------|------|------|
+| `cross-env` | 跨平台环境变量设置 | ^7.0.3 |
+| `rimraf` | 跨平台文件删除（替代 `rm -rf`） | ^6.0.1 |
+
+**示例 - 改造前后对比：**
+
+```json
+// 改造前（仅 Unix 兼容）
+{
+  "scripts": {
+    "electron": "NODE_ENV=development electron .",
+    "clean": "rm -rf dist"
+  }
+}
+
+// 改造后（全平台兼容）
+{
+  "scripts": {
+    "electron": "cross-env NODE_ENV=development electron .",
+    "clean": "rimraf dist"
+  }
+}
+```
+
+**CI 工作流配置：**
+- `.github/workflows/typecheck.yml` - 类型检查
+- `.github/workflows/build.yml` - 多平台打包（Windows/macOS/Linux）
+- `.github/workflows/windows-test.yml` - Windows 环境专项测试
+
 ---
 
 ## 技术决策记录（ADR）
@@ -325,4 +394,4 @@ GitHub Actions 工作流（`.github/workflows/typecheck.yml`）：
 
 ---
 
-*最后更新：2026-03-16*
+*最后更新：2026-03-22*
