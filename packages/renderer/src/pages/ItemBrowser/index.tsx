@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Item } from '@delightify/shared';
-import type { RenderMode } from '../../components/RenderModeToggle';
 import type { ItemCategory } from '../../components/CategoryLegend';
 import ItemCard, { ItemListRow, ItemDetailCard } from '../../components/ItemCard';
-import RenderModeToggle, { RenderSettingsPanel } from '../../components/RenderModeToggle';
 import CategoryLegend from '../../components/CategoryLegend';
 import { electronAPI } from '../../ipc';
 import styles from './style.module.css';
@@ -42,10 +40,9 @@ export default function ItemBrowser(): React.ReactElement {
   
   // 视图状态
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [renderMode, setRenderMode] = useState<RenderMode>('2d');
   const [itemSize, setItemSize] = useState(64);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   
   // 可用选项
   const [categories, setCategories] = useState<string[]>([]);
@@ -115,20 +112,14 @@ export default function ItemBrowser(): React.ReactElement {
 
   // 从 localStorage 恢复设置
   useEffect(() => {
-    const savedRenderMode = localStorage.getItem('itemBrowser.renderMode') as RenderMode | null;
     const savedViewMode = localStorage.getItem('itemBrowser.viewMode') as ViewMode | null;
     const savedItemSize = localStorage.getItem('itemBrowser.itemSize');
     
-    if (savedRenderMode) setRenderMode(savedRenderMode);
     if (savedViewMode && VIEW_MODES.includes(savedViewMode)) setViewMode(savedViewMode);
     if (savedItemSize) setItemSize(parseInt(savedItemSize, 10));
   }, []);
 
   // 保存设置到 localStorage
-  useEffect(() => {
-    localStorage.setItem('itemBrowser.renderMode', renderMode);
-  }, [renderMode]);
-
   useEffect(() => {
     localStorage.setItem('itemBrowser.viewMode', viewMode);
   }, [viewMode]);
@@ -146,6 +137,18 @@ export default function ItemBrowser(): React.ReactElement {
     setCurrentPage(1);
   };
 
+  // 清除所有过滤
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      category: '',
+      modId: '',
+      tag: '',
+      textureType: 'all',
+    });
+    setCurrentPage(1);
+  };
+
   // 渲染物品卡片
   const renderItem = (item: Item) => {
     const isSelected = selectedItem?.id === item.id;
@@ -156,7 +159,6 @@ export default function ItemBrowser(): React.ReactElement {
           <ItemListRow
             key={item.id}
             item={item}
-            renderMode={renderMode}
             size={32}
             selected={isSelected}
             onClick={() => setSelectedItem(item)}
@@ -166,7 +168,7 @@ export default function ItemBrowser(): React.ReactElement {
         if (isSelected) {
           return (
             <div key={item.id} className={styles.detailItemWrapper}>
-              <ItemDetailCard item={item} renderMode={renderMode} />
+              <ItemDetailCard item={item} />
             </div>
           );
         }
@@ -174,7 +176,6 @@ export default function ItemBrowser(): React.ReactElement {
           <ItemListRow
             key={item.id}
             item={item}
-            renderMode={renderMode}
             size={32}
             selected={isSelected}
             onClick={() => setSelectedItem(item)}
@@ -185,12 +186,10 @@ export default function ItemBrowser(): React.ReactElement {
           <ItemCard
             key={item.id}
             item={item}
-            renderMode={renderMode}
             size={itemSize}
             selected={isSelected}
             onClick={() => setSelectedItem(item)}
             onDoubleClick={() => {
-              // TODO: 打开物品详情页
               console.log('Open item details:', item);
             }}
           />
@@ -198,163 +197,184 @@ export default function ItemBrowser(): React.ReactElement {
     }
   };
 
+  // 检查是否有过滤条件
+  const hasFilters = filters.search || filters.modId || filters.category || filters.textureType !== 'all' || filters.tag;
+
   return (
     <div className={styles.container}>
-      {/* 工具栏 */}
+      {/* 工具栏 - 使用 Flexbox 重新布局 */}
       <div className={styles.toolbar}>
-        {/* 搜索框 */}
-        <div className={styles.searchBox}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder="搜索物品名称、ID..."
-            value={filters.search}
-            onChange={(e) => updateFilter('search', e.target.value)}
+        <div className={styles.toolbarLeft}>
+          {/* 搜索框 */}
+          <div className={`${styles.searchBox} ${searchFocused ? styles.focused : ''}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              placeholder="搜索物品名称、ID..."
+              value={filters.search}
+              onChange={(e) => updateFilter('search', e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+            />
+            {filters.search && (
+              <button 
+                className={styles.clearSearch}
+                onClick={() => updateFilter('search', '')}
+                title="清除搜索"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* 过滤下拉框组 */}
+          <select
+            value={filters.modId}
+            onChange={(e) => updateFilter('modId', e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="">所有模组</option>
+            {mods.map(mod => (
+              <option key={mod} value={mod}>{mod}</option>
+            ))}
+          </select>
+
+          <select
+            value={filters.category}
+            onChange={(e) => updateFilter('category', e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="">所有类别</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          <select
+            value={filters.textureType}
+            onChange={(e) => updateFilter('textureType', e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="all">所有类型</option>
+            <option value="item">物品</option>
+            <option value="block">方块</option>
+            <option value="unknown">未知</option>
+          </select>
+
+          <select
+            value={filters.tag}
+            onChange={(e) => updateFilter('tag', e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="">所有标签</option>
+            {tags.map(tag => (
+              <option key={tag} value={tag}>{tag}</option>
+            ))}
+          </select>
+
+          {/* 清除过滤按钮 */}
+          {hasFilters && (
+            <button
+              className={styles.clearFiltersBtn}
+              onClick={clearFilters}
+              title="清除所有过滤"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              清除
+            </button>
+          )}
+        </div>
+
+        <div className={styles.toolbarRight}>
+          {/* 视图模式切换 */}
+          <div className={styles.viewModeToggle}>
+            {VIEW_MODES.map(mode => (
+              <button
+                key={mode}
+                className={`${styles.viewModeBtn} ${viewMode === mode ? styles.active : ''}`}
+                onClick={() => setViewMode(mode)}
+                title={mode === 'grid' ? '网格视图' : mode === 'list' ? '列表视图' : '详情视图'}
+              >
+                {mode === 'grid' && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z"/>
+                  </svg>
+                )}
+                {mode === 'list' && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/>
+                  </svg>
+                )}
+                {mode === 'detail' && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 4h18v2H3V4zm0 7h12v2H3v-2zm0 7h18v2H3v-2z"/>
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* 图标大小切换 */}
+          <div className={styles.sizeToggle}>
+            {[32, 48, 64].map(size => (
+              <button
+                key={size}
+                className={`${styles.sizeBtn} ${itemSize === size ? styles.active : ''}`}
+                onClick={() => setItemSize(size)}
+                title={`${size}px`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+
+          {/* 类别图例 */}
+          <CategoryLegend
+            compact
+            selectedCategory={filters.category as ItemCategory || null}
+            onCategoryClick={(cat) => updateFilter('category', cat || '')}
           />
         </div>
-
-        {/* 过滤下拉框 */}
-        <select
-          value={filters.modId}
-          onChange={(e) => updateFilter('modId', e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">所有模组</option>
-          {mods.map(mod => (
-            <option key={mod} value={mod}>{mod}</option>
-          ))}
-        </select>
-
-        <select
-          value={filters.category}
-          onChange={(e) => updateFilter('category', e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">所有类别</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-
-        <select
-          value={filters.textureType}
-          onChange={(e) => updateFilter('textureType', e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="all">所有类型</option>
-          <option value="item">物品</option>
-          <option value="block">方块</option>
-          <option value="unknown">未知</option>
-        </select>
-
-        <select
-          value={filters.tag}
-          onChange={(e) => updateFilter('tag', e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">所有标签</option>
-          {tags.map(tag => (
-            <option key={tag} value={tag}>{tag}</option>
-          ))}
-        </select>
-
-        {/* 视图模式切换 */}
-        <div className={styles.viewModeToggle}>
-          {VIEW_MODES.map(mode => (
-            <button
-              key={mode}
-              className={`${styles.viewModeBtn} ${viewMode === mode ? styles.active : ''}`}
-              onClick={() => setViewMode(mode)}
-              title={mode === 'grid' ? '网格视图' : mode === 'list' ? '列表视图' : '详情视图'}
-            >
-              {mode === 'grid' && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z"/>
-                </svg>
-              )}
-              {mode === 'list' && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z"/>
-                </svg>
-              )}
-              {mode === 'detail' && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 4h18v2H3V4zm0 7h12v2H3v-2zm0 7h18v2H3v-2z"/>
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* 类别图例 */}
-        <CategoryLegend
-          compact
-          selectedCategory={filters.category as ItemCategory || null}
-          onCategoryClick={(cat) => updateFilter('category', cat || '')}
-        />
-
-        {/* 渲染模式切换 */}
-        <RenderModeToggle
-          mode={renderMode}
-          onChange={setRenderMode}
-          disabled={viewMode !== 'grid'}
-        />
-
-        {/* 设置按钮 -->
-        <button
-          className={`${styles.settingsBtn} ${showSettings ? styles.active : ''}`}
-          onClick={() => setShowSettings(!showSettings)}
-          title="渲染设置"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
-
-        {/* 设置面板弹出层 */}
-        {showSettings && (
-          <div className={styles.settingsPopup}>
-            <RenderSettingsPanel
-              mode={renderMode}
-              onChange={setRenderMode}
-              itemSize={itemSize}
-              onItemSizeChange={setItemSize}
-            />
-          </div>
-        )}
       </div>
 
       {/* 结果统计 */}
       <div className={styles.stats}>
-        <span>共 {totalCount.toLocaleString()} 个物品</span>
-        {filters.search && <span className={styles.filterTag}>搜索: {filters.search}</span>}
-        {filters.modId && <span className={styles.filterTag}>模组: {filters.modId}</span>}
-        {filters.category && <span className={styles.filterTag}>类别: {filters.category}</span>}
-        {filters.textureType !== 'all' && (
+        <span className={styles.count}>共 {totalCount.toLocaleString()} 个物品</span>
+        {filters.search && (
           <span className={styles.filterTag}>
-            类型: {filters.textureType === 'block' ? '方块' : filters.textureType === 'item' ? '物品' : '未知'}
+            搜索: <strong>{filters.search}</strong>
+            <button onClick={() => updateFilter('search', '')}>×</button>
           </span>
         )}
-        {(filters.search || filters.modId || filters.category || filters.textureType !== 'all' || filters.tag) && (
-          <button
-            className={styles.clearFilters}
-            onClick={() => {
-              setFilters({
-                search: '',
-                category: '',
-                modId: '',
-                tag: '',
-                textureType: 'all',
-              });
-              setCurrentPage(1);
-            }}
-          >
-            清除过滤
-          </button>
+        {filters.modId && (
+          <span className={styles.filterTag}>
+            模组: <strong>{filters.modId}</strong>
+            <button onClick={() => updateFilter('modId', '')}>×</button>
+          </span>
+        )}
+        {filters.category && (
+          <span className={styles.filterTag}>
+            类别: <strong>{filters.category}</strong>
+            <button onClick={() => updateFilter('category', '')}>×</button>
+          </span>
+        )}
+        {filters.textureType !== 'all' && (
+          <span className={styles.filterTag}>
+            类型: <strong>{filters.textureType === 'block' ? '方块' : filters.textureType === 'item' ? '物品' : '未知'}</strong>
+            <button onClick={() => updateFilter('textureType', 'all')}>×</button>
+          </span>
+        )}
+        {filters.tag && (
+          <span className={styles.filterTag}>
+            标签: <strong>{filters.tag}</strong>
+            <button onClick={() => updateFilter('tag', '')}>×</button>
+          </span>
         )}
       </div>
 
@@ -377,19 +397,10 @@ export default function ItemBrowser(): React.ReactElement {
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <p>没有找到匹配的物品</p>
-            {(filters.search || filters.modId || filters.category || filters.textureType !== 'all' || filters.tag) && (
+            {hasFilters && (
               <button
                 className={styles.clearFilters}
-                onClick={() => {
-                  setFilters({
-                    search: '',
-                    category: '',
-                    modId: '',
-                    tag: '',
-                    textureType: 'all',
-                  });
-                  setCurrentPage(1);
-                }}
+                onClick={clearFilters}
               >
                 清除过滤条件
               </button>
@@ -421,7 +432,6 @@ export default function ItemBrowser(): React.ReactElement {
               上一页
             </button>
             
-            {/* 页码显示 */}
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum: number;
               if (totalPages <= 5) {

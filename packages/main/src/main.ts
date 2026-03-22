@@ -3,6 +3,8 @@ import * as path from 'path';
 import { registerAllHandlers } from './ipc';
 import { appPaths } from './services/paths';
 import { createGlobalDbClient, closeAllConnections, schema } from './services/database';
+import { initResourceLoader } from './services/jar-parser/resource-loader';
+import { initTextureResolver } from './services/resource-renderer/texture-resolver';
 
 // 检测是否为开发环境
 // 使用多种方式检测，确保在打包后的应用中能正确识别
@@ -111,7 +113,19 @@ function getProductionIndexPath(): string {
   return asarRendererPath;
 }
 
-function createWindow(): void {
+/**
+ * 检测 Vite dev server 是否运行
+ */
+async function isViteDevServerRunning(): Promise<boolean> {
+  try {
+    const response = await fetch('http://localhost:5173');
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function createWindow(): Promise<void> {
   const preloadPath = path.join(__dirname, 'preload.js');
   console.log('[Main] Preload script path:', preloadPath);
   console.log('[Main] isDev:', isDev);
@@ -140,7 +154,11 @@ function createWindow(): void {
     }
   });
 
-  if (isDev) {
+  // 检测 Vite dev server 是否运行
+  const viteRunning = await isViteDevServerRunning();
+  console.log('[Main] Vite dev server running:', viteRunning);
+
+  if (viteRunning) {
     console.log('[Main] Loading Vite dev server at http://localhost:5173');
     win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
@@ -236,6 +254,11 @@ async function initializeApp(): Promise<void> {
     const result = await globalDb.execute('SELECT COUNT(*) as count FROM mods');
     console.log('[Main] Database connection verified, mods count:', result.rows[0]?.count || 0);
     
+    // 4. 初始化资源加载器（在后台异步加载，不阻塞启动）
+    initTextureResolver().catch(err => {
+      console.warn('[Main] Failed to initialize texture resolver:', err);
+    });
+    
     console.log('[Main] Application initialized successfully');
   } catch (error) {
     console.error('[Main] Failed to initialize application:', error);
@@ -259,11 +282,11 @@ app.whenReady().then(async () => {
   registerAllHandlers();
   
   // 创建窗口
-  createWindow();
+  await createWindow();
 
-  app.on('activate', () => {
+  app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      await createWindow();
     }
   });
 });

@@ -127,8 +127,17 @@ Delightify/
 # 安装依赖 (所有平台)
 pnpm install
 
-# 启动开发模式（前端热重载 + 主进程监听）
+# 启动 Electron（使用已构建的 renderer，启动最快）
 pnpm dev
+
+# 完整开发模式（Vite 热重载 + Electron，前端开发推荐）
+pnpm dev:full
+
+# 只启动 Vite 开发服务器（浏览器访问 http://localhost:5173）
+pnpm dev:web
+
+# 安全模式开发（禁用 GPU 加速，用于兼容性测试）
+pnpm dev:safe
 
 # 构建所有包
 pnpm build
@@ -139,6 +148,27 @@ pnpm typecheck
 # 清理构建产物
 pnpm clean
 ```
+
+**开发模式说明：**
+
+| 命令 | 用途 | 适用场景 |
+|------|------|----------|
+| `pnpm dev` | 构建后启动 Electron | 快速预览、开发主进程功能 |
+| `pnpm dev:watch` | 监听 main 变更 + 启动 Electron | 开发主进程（自动重启） |
+| `pnpm dev:full` | Vite 热重载 + Electron | 开发前端界面（推荐） |
+| `pnpm dev:web` | 只启动 Vite 服务器 | 纯浏览器调试前端 |
+| `pnpm dev:safe` | 安全模式启动 Electron | GPU 兼容性测试 |
+
+**智能加载机制：**
+
+主进程启动时会自动检测 Vite dev server (http://localhost:5173)：
+- 如果 Vite 正在运行 → 使用 Vite 的 URL（支持热重载）
+- 如果 Vite 未运行 → 使用已构建的 renderer（生产模式）
+
+这意味着你可以：
+1. 先运行 `pnpm dev` 快速启动 Electron
+2. 稍后运行 `pnpm dev:web` 启动 Vite
+3. Electron 窗口会自动切换到热重载模式（无需重启）
 
 **Windows 特定命令:**
 ```powershell

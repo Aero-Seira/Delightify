@@ -47,3 +47,15 @@ export {
   sql as sqlOp,
   count as countOp,
 } from 'drizzle-orm';
+
+// Export batch save utilities
+export {
+  batchInsertItems,
+  batchInsertTags,
+  batchInsertRecipes,
+  batchInsertTranslations,
+  batchInsertTextures,
+  optimizeForBulkInsert,
+  restoreSafetySettings,
+  withTransaction,
+} from './batch-save';

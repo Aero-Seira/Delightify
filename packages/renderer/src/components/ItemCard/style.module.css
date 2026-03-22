@@ -444,6 +444,54 @@
   }
 }
 
+/* 3D 方块渲染样式 */
+.block3d {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  perspective: 600px;
+}
+
+.cube {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease;
+}
+
+.cube:hover {
+  transform: rotateX(60deg) rotateZ(45deg) rotateZ(15deg);
+}
+
+.face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.faceTop {
+  /* 顶面 - 最亮 */
+}
+
+.faceLeft {
+  /* 左面 - 中等亮度 */
+}
+
+.faceRight {
+  /* 右面 - 最暗 */
+}
+
 /* 移动端适配 */
 @media (max-width: 480px) {
   .card {

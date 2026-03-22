@@ -8,6 +8,7 @@ import type {
 } from '@delightify/shared';
 import { appPaths } from '../services/paths';
 import { createGlobalDbClient } from '../services/database';
+import { getItemTextureData, generateMissingTexture, generateLetterFallback } from '../services/resource-renderer/texture-resolver';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -237,52 +238,45 @@ export function registerItemsHandlers(): void {
 
       console.log('[Items] Get texture:', itemId);
 
-      const db = createGlobalDbClient(appPaths.globalDb);
-
-      // 查询物品的材质缓存名
-      const result = await db.execute({
-        sql: 'SELECT texture_cache_name FROM items WHERE item_id = ?',
-        args: [itemId],
-      });
-
-      const row = result.rows[0] as any;
-      if (!row || !row.texture_cache_name) {
-        return { success: true, data: null };
+      // 使用新的智能纹理解析器
+      const { data, resolved } = await getItemTextureData(itemId);
+      
+      if (data && resolved) {
+        console.log(`[Items] Found texture for ${itemId}: ${resolved.cacheName} (${resolved.isFallback ? 'fallback' : 'exact'})`);
+        return { success: true, data };
       }
 
-      // 直接读取缓存文件
-      try {
-        const cachePath = path.join(appPaths.textureCache, row.texture_cache_name);
-        
-        if (fs.existsSync(cachePath)) {
-          const data = fs.readFileSync(cachePath);
-          const base64 = `data:image/png;base64,${data.toString('base64')}`;
-          return { success: true, data: base64 };
-        }
-        
-        // 如果精确匹配失败，尝试模糊匹配（兼容旧数据）
-        if (fs.existsSync(appPaths.textureCache)) {
-          const files = fs.readdirSync(appPaths.textureCache);
-          const baseName = row.texture_cache_name.replace(/_[a-f0-9]{8,16}\.png$/, '');
-          const pattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_[a-f0-9]{8,16}\\.png$`);
-          
-          for (const file of files) {
-            if (pattern.test(file)) {
-              const fullPath = path.join(appPaths.textureCache, file);
-              const data = fs.readFileSync(fullPath);
-              const base64 = `data:image/png;base64,${data.toString('base64')}`;
-              return { success: true, data: base64 };
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('[Items] Failed to read texture:', error);
-      }
-
+      // 如果没有找到纹理，返回 null（让前端使用 fallback）
+      console.warn(`[Items] No texture found for ${itemId}`);
       return { success: true, data: null };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get texture';
       console.error('[Items] Get texture error:', error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // ITEMS_GET_TEXTURE_FALLBACK: Get fallback info for missing textures
+  ipcMain.handle('items:get-texture-fallback', async (
+    _event,
+    itemId: string
+  ): Promise<IpcResponse<{ type: 'missing' | 'letter'; data: string; char?: string; color?: string }>> => {
+    try {
+      // 首先尝试生成 missing texture
+      const missingTexture = generateMissingTexture();
+      const { char, color } = generateLetterFallback(itemId);
+      
+      return {
+        success: true,
+        data: {
+          type: 'missing',
+          data: missingTexture,
+          char,
+          color,
+        }
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate fallback';
       return { success: false, error: errorMessage };
     }
   });

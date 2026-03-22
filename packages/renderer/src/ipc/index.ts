@@ -25,6 +25,7 @@ export interface ElectronAPI {
   // Item queries
   itemsQuery: (query: unknown) => Promise<{ success: boolean; data?: { items: unknown[]; total: number; page: number; pageSize: number }; error?: string }>;
   itemsGetTexture: (itemId: string) => Promise<{ success: boolean; data?: string | null; error?: string }>;
+  itemsGetTextureFallback: (itemId: string) => Promise<{ success: boolean; data?: { type: 'missing' | 'letter'; data: string; char?: string; color?: string }; error?: string }>;
   itemsGetAllTags: () => Promise<{ success: boolean; data?: Array<{ tagId: string; count: number }>; error?: string }>;
   itemsGetCategories: () => Promise<{ success: boolean; data?: Array<{ category: string; count: number }>; error?: string }>;
   itemsGetDetail: (itemId: string) => Promise<{ success: boolean; data?: (import('@delightify/shared').Item & { tags: string[] }) | null; error?: string }>;

@@ -130,12 +130,39 @@ export interface TextureInfo {
 }
 
 /**
+ * 模型面定义
+ */
+export interface ModelFace {
+  texture: string;
+  uv?: [number, number, number, number];
+  cullface?: string;
+  rotation?: number;
+  tintindex?: number;
+}
+
+/**
+ * 模型元素定义
+ */
+export interface ModelElement {
+  from: [number, number, number];
+  to: [number, number, number];
+  rotation?: {
+    angle: number;
+    axis: 'x' | 'y' | 'z';
+    origin: [number, number, number];
+  };
+  faces: Record<string, ModelFace>;
+  shade?: boolean;
+  name?: string;
+}
+
+/**
  * 模型定义（简化版）
  */
 export interface ModelDefinition {
   parent?: string;
   textures?: Record<string, string>;
-  elements?: any[];
+  elements?: ModelElement[];
   display?: {
     gui?: {
       rotation?: [number, number, number];

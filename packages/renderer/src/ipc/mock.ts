@@ -393,6 +393,33 @@ export const mockElectronAPI = {
     return { success: true, data: textureData || null };
   },
 
+  itemsGetTextureFallback: async (itemId: string) => {
+    await delay(50);
+    // 生成缺失纹理占位符
+    const parts = itemId.split(':');
+    const name = parts[1] || parts[0];
+    const firstWord = name.split(/[_\s]+/)[0];
+    const char = firstWord.charAt(0).toUpperCase();
+    
+    // 生成稳定的颜色
+    const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6'];
+    let hash = 0;
+    for (let i = 0; i < itemId.length; i++) {
+      hash = itemId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const color = colors[Math.abs(hash) % colors.length];
+    
+    return {
+      success: true,
+      data: {
+        type: 'missing' as const,
+        data: '', // Mock 模式下不需要实际图片数据
+        char,
+        color,
+      },
+    };
+  },
+
   itemsGetAllTags: async () => {
     await delay(200);
     return {

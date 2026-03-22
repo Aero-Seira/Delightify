@@ -26,6 +26,7 @@ const IPC_CHANNELS = {
   ITEMS_GET_BY_MOD: 'items:get-by-mod',
   ITEMS_GET_TAGS: 'items:get-tags',
   ITEMS_GET_TEXTURE: 'items:get-texture',
+  ITEMS_GET_TEXTURE_FALLBACK: 'items:get-texture-fallback',
   ITEMS_GET_ALL_TAGS: 'items:get-all-tags',
   ITEMS_GET_CATEGORIES: 'items:get-categories',
   ITEMS_GET_DETAIL: 'items:get-detail',
@@ -92,6 +93,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke(IPC_CHANNELS.ITEMS_QUERY, query),
   itemsGetTexture: (itemId: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_TEXTURE, itemId),
+  itemsGetTextureFallback: (itemId: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_TEXTURE_FALLBACK, itemId),
   itemsGetAllTags: () => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_ALL_TAGS),
   itemsGetCategories: () => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_CATEGORIES),
   itemsGetDetail: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_DETAIL, itemId),

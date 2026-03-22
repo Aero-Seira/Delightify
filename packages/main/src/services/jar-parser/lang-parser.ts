@@ -153,14 +153,17 @@ export function parseLangFilesFromJar(
     }
   }
 
-  // 优先使用 en_us，其次是 zh_cn，最后是任意语言
+  // 语言优先级：zh_cn（中文）> en_us（英文）> 其他
+  // 排序让优先级低的先处理，优先级高的后处理（后覆盖前）
   const priorityOrder = ['en_us', 'zh_cn'];
   langFiles.sort((a, b) => {
     const aIndex = priorityOrder.indexOf(a.langCode);
     const bIndex = priorityOrder.indexOf(b.langCode);
+    // 未知语言排在最前面（最低优先级）
     if (aIndex === -1 && bIndex === -1) return 0;
-    if (aIndex === -1) return 1;
-    if (bIndex === -1) return -1;
+    if (aIndex === -1) return -1;
+    if (bIndex === -1) return 1;
+    // 优先级数值小的排在前面
     return aIndex - bIndex;
   });
 
@@ -182,11 +185,10 @@ export function parseLangFilesFromJar(
 
     const result = parseLangFile(content, langCode, expectedModId);
 
-    // 合并翻译（后覆盖前，所以优先级高的应该后处理）
+    // 合并翻译（优先级高的后处理，覆盖前面的）
     for (const [key, value] of result.translations) {
-      if (!mergedTranslations.has(key)) {
-        mergedTranslations.set(key, value);
-      }
+      // 直接设置，允许后处理的高优先级语言覆盖前面的
+      mergedTranslations.set(key, value);
     }
 
     // 合并物品（以 itemId 为键去重）

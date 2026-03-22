@@ -25,6 +25,8 @@ export * from './tag-parser';
 export * from './recipe-parser';
 export * from './texture-extractor';
 export * from './resource-loader';
+export * from './model-analyzer';
+export * from './jar-parse-worker-pool';
 
 /**
  * 扩展 ParserOptions，添加缓存目录

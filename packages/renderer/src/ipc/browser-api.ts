@@ -337,6 +337,11 @@ export const browserElectronAPI = {
     }
   },
 
+  itemsGetTextureFallback: async (itemId: string) => {
+    // 使用 mock 的实现
+    return mockElectronAPI.itemsGetTextureFallback(itemId);
+  },
+
   itemsGetAllTags: async () => {
     return mockElectronAPI.itemsGetAllTags();
   },

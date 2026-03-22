@@ -1,0 +1,70 @@
+{
+  "mappings": {
+    "vectorwing/farmersdelight/common/mixin/KeepRichSoilGiantTreeMixin": {
+      "isGrassOrDirt": "Lnet/minecraft/world/level/levelgen/feature/Feature;m_65788_(Lnet/minecraft/world/level/LevelSimulatedReader;Lnet/minecraft/core/BlockPos;)Z"
+    },
+    "vectorwing/farmersdelight/common/mixin/CanvasSignEditScreenMixin": {
+      "openTextEdit": "Lnet/minecraft/client/player/LocalPlayer;m_7739_(Lnet/minecraft/world/level/block/entity/SignBlockEntity;Z)V"
+    },
+    "vectorwing/farmersdelight/common/mixin/accessor/RecipeManagerAccessor": {
+      "byType": "m_44054_(Lnet/minecraft/world/item/crafting/RecipeType;)Ljava/util/Map;"
+    },
+    "vectorwing/farmersdelight/common/mixin/CampfireBaleMixin": {
+      "isSmokeSource": "Lnet/minecraft/world/level/block/CampfireBlock;m_51323_(Lnet/minecraft/world/level/block/state/BlockState;)Z"
+    },
+    "vectorwing/farmersdelight/common/mixin/RabbitsEatCabbageMixin": {
+      "isFood": "Lnet/minecraft/world/entity/animal/Rabbit;m_6898_(Lnet/minecraft/world/item/ItemStack;)Z"
+    },
+    "vectorwing/farmersdelight/common/mixin/CuttingBoardDispenserMixin": {
+      "Lnet/minecraft/world/level/block/DispenserBlock;getDispenseMethod(Lnet/minecraft/world/item/ItemStack;)Lnet/minecraft/core/dispenser/DispenseItemBehavior;": "Lnet/minecraft/world/level/block/DispenserBlock;m_7216_(Lnet/minecraft/world/item/ItemStack;)Lnet/minecraft/core/dispenser/DispenseItemBehavior;",
+      "dispenseFrom": "Lnet/minecraft/world/level/block/DispenserBlock;m_5824_(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)V"
+    },
+    "vectorwing/farmersdelight/common/mixin/HideBlockBreakProgressMixin": {
+      "renderBreakingTexture": "Lnet/minecraft/client/renderer/block/BlockRenderDispatcher;m_110918_(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/BlockAndTintGetter;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;)V"
+    },
+    "vectorwing/farmersdelight/common/mixin/KeepRichSoilTreeMixin": {
+      "setDirtAt": "Lnet/minecraft/world/level/levelgen/feature/trunkplacers/TrunkPlacer;m_226169_(Lnet/minecraft/world/level/LevelSimulatedReader;Ljava/util/function/BiConsumer;Lnet/minecraft/util/RandomSource;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration;)V"
+    },
+    "vectorwing/farmersdelight/common/mixin/KeepRichSoilUntrampledMixin": {
+      "turnToDirt": "Lnet/minecraft/world/level/block/FarmBlock;m_269406_(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;)V"
+    },
+    "vectorwing/farmersdelight/common/mixin/SoupItemMixin": {
+      "finishUsingItem": "Lnet/minecraft/world/item/BowlFoodItem;m_5922_(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;)Lnet/minecraft/world/item/ItemStack;"
+    }
+  },
+  "data": {
+    "searge": {
+      "vectorwing/farmersdelight/common/mixin/KeepRichSoilGiantTreeMixin": {
+        "isGrassOrDirt": "Lnet/minecraft/world/level/levelgen/feature/Feature;m_65788_(Lnet/minecraft/world/level/LevelSimulatedReader;Lnet/minecraft/core/BlockPos;)Z"
+      },
+      "vectorwing/farmersdelight/common/mixin/CanvasSignEditScreenMixin": {
+        "openTextEdit": "Lnet/minecraft/client/player/LocalPlayer;m_7739_(Lnet/minecraft/world/level/block/entity/SignBlockEntity;Z)V"
+      },
+      "vectorwing/farmersdelight/common/mixin/accessor/RecipeManagerAccessor": {
+        "byType": "m_44054_(Lnet/minecraft/world/item/crafting/RecipeType;)Ljava/util/Map;"
+      },
+      "vectorwing/farmersdelight/common/mixin/CampfireBaleMixin": {
+        "isSmokeSource": "Lnet/minecraft/world/level/block/CampfireBlock;m_51323_(Lnet/minecraft/world/level/block/state/BlockState;)Z"
+      },
+      "vectorwing/farmersdelight/common/mixin/RabbitsEatCabbageMixin": {
+        "isFood": "Lnet/minecraft/world/entity/animal/Rabbit;m_6898_(Lnet/minecraft/world/item/ItemStack;)Z"
+      },
+      "vectorwing/farmersdelight/common/mixin/CuttingBoardDispenserMixin": {
+        "Lnet/minecraft/world/level/block/DispenserBlock;getDispenseMethod(Lnet/minecraft/world/item/ItemStack;)Lnet/minecraft/core/dispenser/DispenseItemBehavior;": "Lnet/minecraft/world/level/block/DispenserBlock;m_7216_(Lnet/minecraft/world/item/ItemStack;)Lnet/minecraft/core/dispenser/DispenseItemBehavior;",
+        "dispenseFrom": "Lnet/minecraft/world/level/block/DispenserBlock;m_5824_(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;)V"
+      },
+      "vectorwing/farmersdelight/common/mixin/HideBlockBreakProgressMixin": {
+        "renderBreakingTexture": "Lnet/minecraft/client/renderer/block/BlockRenderDispatcher;m_110918_(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/BlockAndTintGetter;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;)V"
+      },
+      "vectorwing/farmersdelight/common/mixin/KeepRichSoilTreeMixin": {
+        "setDirtAt": "Lnet/minecraft/world/level/levelgen/feature/trunkplacers/TrunkPlacer;m_226169_(Lnet/minecraft/world/level/LevelSimulatedReader;Ljava/util/function/BiConsumer;Lnet/minecraft/util/RandomSource;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration;)V"
+      },
+      "vectorwing/farmersdelight/common/mixin/KeepRichSoilUntrampledMixin": {
+        "turnToDirt": "Lnet/minecraft/world/level/block/FarmBlock;m_269406_(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/Level;Lnet/minecraft/core/BlockPos;)V"
+      },
+      "vectorwing/farmersdelight/common/mixin/SoupItemMixin": {
+        "finishUsingItem": "Lnet/minecraft/world/item/BowlFoodItem;m_5922_(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/level/Level;Lnet/minecraft/world/entity/LivingEntity;)Lnet/minecraft/world/item/ItemStack;"
+      }
+    }
+  }
+}
