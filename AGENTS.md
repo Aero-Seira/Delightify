@@ -304,12 +304,18 @@ config/recipe_types/
 - 异步操作提供进度回调（`xxx:progress` 通道）
 
 ### JAR 解析策略
-Node.js 无法在运行时访问 JVM 注册表，使用**三重策略**达到 ~98% 物品覆盖率：
+Node.js 无法在运行时访问 JVM 注册表，使用**三重策略 + 多部位方块合并**达到 ~98% 物品覆盖率：
 
 1. **Lang 文件反推**：`assets/{modid}/lang/en_us.json`
    - Key: `item.{modid}.{item_name}` → ID: `{modid}:{item_name}`
 2. **Tags 文件补充**：`data/{modid}/tags/items/*.json`
 3. **Recipes 文件扫描**：`data/{modid}/recipes/*.json`
+4. **多部位方块合并**：`services/jar-parser/multi-part-block-detector.ts`
+   - 识别多方块结构的不同部位（如 `lemon_tree_upper`, `lemon_tree_mid`）
+   - 合并为单一基础方块（`lemon_tree`）
+   - 支持的后缀模式：位置（upper/lower/mid）、大小（small/medium/large）、状态（fruits/flowering/mature）及其组合
+   - 排除独立方块类型：`_block`, `_cauldron`, `_chest`, `_furnace` 等被视为独立方块，不会与基础物品合并
+   - 智能合并策略：只有当 >= 2 个物品共享同一基础名称时，或存在基础方块 + 部位变体时，才执行合并
 
 ---
 

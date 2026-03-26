@@ -14,7 +14,21 @@ import {
   readJarFile,
   supportsFileSystemAccess 
 } from './browser-fs';
-import type { Project, Mod, Item } from '@delightify/shared';
+import type { Project, Mod, Item, ItemQueryResult } from '@delightify/shared';
+
+// 浏览器模式下的本地物品类型（包含扩展字段）
+interface BrowserItem {
+  itemId: string;
+  modId: string;
+  name?: string;
+  displayName?: string;
+  displayNameKey?: string;
+  category?: string;
+  textureCacheName?: string;
+  textureType?: string;
+  isBlock?: boolean;
+  createdAt?: string;
+}
 import { mockElectronAPI } from './mock';
 
 // 纹理缓存（内存中）
@@ -99,7 +113,7 @@ export const browserElectronAPI = {
       };
 
       // 4. 解析物品、纹理等
-      const items: Item[] = [];
+      const items: BrowserItem[] = [];
       const textures: Array<{ path: string; cacheName: string; blob: Blob }> = [];
       
       for (const entry of entries) {
@@ -223,13 +237,9 @@ export const browserElectronAPI = {
     return { 
       success: true, 
       data: {
-        modId: mod.mod_id,
-        modName: mod.mod_name,
+        modid: mod.mod_id,
         version: mod.version,
-        mcVersion: mod.mc_version,
-        sourceType: 'jar',
-        itemCount: mod.item_count,
-        recipeCount: mod.recipe_count,
+        name: mod.mod_name,
       } as Mod
     };
   },
@@ -241,57 +251,29 @@ export const browserElectronAPI = {
 
   // ========== Items ==========
   itemsQuery: async (params: any) => {
-    const { search, modId, category, textureType, page = 1, pageSize = 50 } = params;
+    const { search, modid, page = 1, pageSize = 50 } = params;
     
     let items: Item[] = [];
     
-    if (modId) {
-      const result = await browserDB.query<any>('items', 'mod_id', modId);
-      items = result.rows.map(row => ({
-        itemId: row.item_id,
-        modId: row.mod_id,
-        name: row.item_id.split(':')[1],
-        displayName: row.display_name,
-        displayNameKey: row.display_name_key,
-        category: row.category,
-        texturePath: row.texture_path,
-        textureCacheName: row.texture_cache_name,
-        textureType: row.texture_type,
-        isBlock: row.is_block === 1,
-        createdAt: row.created_at,
-      }));
+    // 从 browser DB 获取物品（简化结构）
+    let result;
+    if (modid) {
+      result = await browserDB.query<any>('items', 'mod_id', modid);
     } else {
-      const result = await browserDB.execute<any>('items');
-      items = result.rows.map(row => ({
-        itemId: row.item_id,
-        modId: row.mod_id,
-        name: row.item_id.split(':')[1],
-        displayName: row.display_name,
-        displayNameKey: row.display_name_key,
-        category: row.category,
-        texturePath: row.texture_path,
-        textureCacheName: row.texture_cache_name,
-        textureType: row.texture_type,
-        isBlock: row.is_block === 1,
-        createdAt: row.created_at,
-      }));
+      result = await browserDB.execute<any>('items');
     }
+    
+    items = result.rows.map(row => ({
+      itemId: row.item_id || row.itemId,
+      modid: row.mod_id || row.modid,
+    }));
     
     // 过滤
     if (search) {
       const searchLower = search.toLowerCase();
       items = items.filter(i => 
-        i.itemId.toLowerCase().includes(searchLower) ||
-        (i.displayName && i.displayName.toLowerCase().includes(searchLower))
+        i.itemId.toLowerCase().includes(searchLower)
       );
-    }
-    
-    if (category) {
-      items = items.filter(i => i.category === category);
-    }
-    
-    if (textureType) {
-      items = items.filter(i => i.textureType === textureType);
     }
     
     const start = (page - 1) * pageSize;
@@ -304,84 +286,28 @@ export const browserElectronAPI = {
         total: items.length,
         page,
         pageSize,
-      },
+      } as ItemQueryResult,
     };
   },
 
-  itemsGetTexture: async (itemId: string) => {
-    try {
-      // 获取物品的纹理信息
-      const items = await browserDB.execute<any>('items');
-      const item = items.rows.find((i: any) => i.item_id === itemId);
-      
-      if (!item || !item.texture_cache_name) {
-        return { success: true, data: null };
-      }
-      
-      // 检查内存缓存
-      if (textureCache.has(item.texture_cache_name)) {
-        return { success: true, data: textureCache.get(item.texture_cache_name) };
-      }
-      
-      // 从数据库获取纹理 Blob
-      const blob = await browserDB.getTexture(item.texture_cache_name);
-      if (blob) {
-        const url = URL.createObjectURL(blob);
-        textureCache.set(item.texture_cache_name, url);
-        return { success: true, data: url };
-      }
-      
-      return { success: true, data: null };
-    } catch (error) {
-      return { success: false, error: 'Failed to load texture' };
-    }
-  },
-
-  itemsGetTextureFallback: async (itemId: string) => {
-    // 使用 mock 的实现
-    return mockElectronAPI.itemsGetTextureFallback(itemId);
-  },
-
-  itemsGetAllTags: async () => {
-    return mockElectronAPI.itemsGetAllTags();
-  },
-
-  itemsGetCategories: async () => {
+  itemsGetById: async (itemId: string) => {
     const items = await browserDB.execute<any>('items');
-    const categories = new Map<string, number>();
-    
-    for (const item of items.rows) {
-      const cat = item.category || 'misc';
-      categories.set(cat, (categories.get(cat) || 0) + 1);
-    }
-    
-    return {
-      success: true,
-      data: Array.from(categories.entries()).map(([category, count]) => ({
-        category,
-        count,
-      })),
-    };
-  },
-
-  itemsGetDetail: async (itemId: string) => {
-    const items = await browserDB.execute<any>('items');
-    const item = items.rows.find((i: any) => i.item_id === itemId);
+    const item = items.rows.find((i: any) => (i.item_id || i.itemId) === itemId);
     
     if (!item) return { success: true, data: null };
     
     return {
       success: true,
       data: {
-        itemId: item.item_id,
-        modId: item.mod_id,
-        displayName: item.display_name,
-        category: item.category,
-        textureType: item.texture_type,
-        isBlock: item.is_block === 1,
-        tags: [],
-      },
+        itemId: item.item_id || item.itemId,
+        modid: item.mod_id || item.modid,
+      } as Item,
     };
+  },
+
+  // 浏览器模式下纹理相关功能使用 mock
+  itemsGetTexture: async (itemId: string) => {
+    return { success: true, data: null };
   },
 
   modsQuery: async () => {
@@ -389,9 +315,9 @@ export const browserElectronAPI = {
     return {
       success: true,
       data: result.rows.map((m: any) => ({
-        modId: m.mod_id,
-        name: m.mod_name,
-        itemCount: m.item_count || 0,
+        modid: m.mod_id || m.modid,
+        version: m.version || 'unknown',
+        name: m.mod_name || m.name || m.mod_id || m.modid,
       })),
     };
   },
@@ -429,48 +355,100 @@ export const browserElectronAPI = {
     };
   },
 
-  debugDbQuery: async () => ({ success: true, data: [] }),
-  debugDbDeleteMod: async (modId: string) => {
-    await browserDB.delete('mods', modId);
-    return { success: true };
+  debugDbQuery: async (_projectPath: string, sql: string, _args?: unknown[]) => {
+    // 浏览器模式下只支持简单的 SELECT 查询
+    if (sql.toLowerCase().includes('select')) {
+      const table = sql.toLowerCase().includes('from items') ? 'items' :
+                    sql.toLowerCase().includes('from mods') ? 'mods' :
+                    sql.toLowerCase().includes('from recipes') ? 'recipes' : null;
+      if (table) {
+        const result = await browserDB.execute(table);
+        return { success: true, data: result.rows };
+      }
+    }
+    return { success: true, data: [] };
   },
-  debugDbClearAll: async () => {
+
+  debugClearData: async () => {
     const stores = ['mods', 'items', 'recipes', 'tags', 'translations', 'textures'];
     for (const store of stores) {
       await browserDB.clear(store as any);
     }
-    return { success: true };
+    return { success: true, data: { cleared: true } };
   },
-  debugCacheInfo: async () => {
-    const textures = await browserDB.execute('textures');
+
+  // ========== Mod Data Import ==========
+  modDataDetect: async () => ({ success: true, data: { found: false } }),
+  modDataValidate: async () => ({ success: true, data: { valid: false } }),
+  modDataImport: async () => ({ success: true, data: { modCount: 0, itemCount: 0, recipeCount: 0, tagCount: 0 } }),
+  onModDataImportProgress: () => () => {},
+
+  // Import Engine Test
+  importEngineTest: async (filePath: string) => {
+    // 浏览器模式下不支持实际测试，返回 mock 数据
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     return {
       success: true,
       data: {
-        cacheDir: 'indexeddb://textures',
-        fileCount: textures.rows.length,
-        totalSizeFormatted: 'N/A',
+        oldEngine: {
+          engine: 'old',
+          duration: 1200,
+          items: 156,
+          blocks: 89,
+          recipes: 234,
+          tags: 45,
+          errors: [],
+          warnings: ['Some items may be missing'],
+          details: {},
+        },
+        newEngine: {
+          engine: 'new',
+          duration: 850,
+          items: 142,
+          blocks: 78,
+          recipes: 234,
+          tags: 52,
+          errors: [],
+          warnings: [],
+          details: {
+            resolvedTagCount: 52,
+            totalResolvedItems: 340,
+          },
+        },
+        differences: [
+          { type: 'removed', item: 'lemon_tree_upper', oldValue: 'block', newValue: undefined },
+          { type: 'removed', item: 'lemon_tree_mid', oldValue: 'block', newValue: undefined },
+          { type: 'added', item: 'lemon_tree', oldValue: undefined, newValue: 'multiblock' },
+          { type: 'improved', item: 'Tag Resolution', description: 'New engine expands tag references', oldValue: '45 tags', newValue: '52 tags with 340 items' },
+        ],
       },
     };
   },
-  debugDbPath: async () => ({
-    success: true,
-    data: {
-      globalDb: 'indexeddb://DelightifyDB',
-      textureCache: 'indexeddb://textures',
-      projectsJson: 'indexeddb://projects',
-    },
-  }),
-  debugGetItemDetail: async (itemId: string) => {
-    const items = await browserDB.execute<any>('items');
-    const item = items.rows.find((i: any) => i.item_id === itemId);
+  
+  onImportEngineTestProgress: () => {
+    return () => {};
+  },
+  
+  // JAR Bytecode Import
+  jarImportBytecode: async (filePath: string) => {
+    await new Promise(resolve => setTimeout(resolve, 1500));
     return {
       success: true,
       data: {
-        item,
-        translations: [],
-        tags: [],
+        items: 142,
+        blocks: 78,
       },
     };
+  },
+  
+  onJarImportBytecodeProgress: (callback: (progress: { phase: string; percent: number }) => void) => {
+    let percent = 0;
+    const interval = setInterval(() => {
+      percent = (percent + 5) % 100;
+      callback({ phase: 'analyzing', percent });
+    }, 100);
+    return () => clearInterval(interval);
   },
 };
 

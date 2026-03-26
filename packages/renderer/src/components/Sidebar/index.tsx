@@ -4,11 +4,11 @@ import { useI18n } from '../../i18n';
 import styles from './style.module.css';
 
 // Icons
-const ModManagerIcon: React.FC = () => (
+const DataImportIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-    <line x1="12" y1="22.08" x2="12" y2="12" />
+    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+    <path d="M12 12v9" />
+    <path d="m8 17 4 4 4-4" />
   </svg>
 );
 
@@ -58,6 +58,26 @@ const DebugIcon: React.FC = () => (
   </svg>
 );
 
+const TestTubeIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14.5 2v6.5a2.5 2.5 0 0 1-5 0V2" />
+    <path d="M8.5 2h7" />
+    <path d="M14.5 13.5a2.5 2.5 0 0 1-5 0V2" />
+    <path d="M6.5 13.5a2.5 2.5 0 0 0 5 0V2" />
+    <path d="M4.5 13.5a4.5 4.5 0 0 0 4.5 4.5h6a4.5 4.5 0 0 0 4.5-4.5V2" />
+  </svg>
+);
+
+const LLMIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3Z" />
+    <path d="M12 5v14" />
+    <path d="M8 9h8" />
+    <path d="M8 12h8" />
+    <path d="M8 15h8" />
+  </svg>
+);
+
 const HomeIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -101,12 +121,14 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps): 
   ];
 
   const toolNavItems = [
-    { to: '/mods', icon: ModManagerIcon, label: t('nav.modManager'), exact: false },
+    { to: '/data-import', icon: DataImportIcon, label: t('nav.dataImport'), exact: false },
     { to: '/items', icon: ItemBrowserIcon, label: t('nav.itemBrowser'), exact: false },
     { to: '/recipes', icon: RecipeBrowserIcon, label: t('nav.recipeBrowser'), exact: false },
     { to: '/editor', icon: RecipeEditorIcon, label: t('nav.recipeEditor'), exact: false },
     { to: '/convert', icon: ConversionToolIcon, label: t('nav.conversionTool'), exact: false },
+    { to: '/import-test', icon: TestTubeIcon, label: '引擎测试', exact: false },
     { to: '/debug', icon: DebugIcon, label: '数据库管理', exact: false },
+    { to: '/llm-debug', icon: LLMIcon, label: 'LLM 调试', exact: false },
   ];
 
   const isActive = (to: string, exact: boolean): boolean => {

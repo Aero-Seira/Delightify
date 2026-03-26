@@ -1,187 +1,147 @@
+/**
+ * Recipes IPC Handlers - v2.1
+ * 
+ * 根据 reference_sql/export.sqlite 样例调整
+ */
+
 import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '@delightify/shared';
 import type { 
   IpcResponse, 
-  Recipe, 
-  RecipeFilter,
-  RecipeExportOptions 
+  Recipe,
+  RecipeQueryParams,
+  RecipeTypeInfo,
 } from '@delightify/shared';
-
-// M0 placeholder: In-memory recipe storage
-const mockRecipes: Recipe[] = [];
-
-/**
- * Generate unique recipe ID
- */
-function generateRecipeId(): string {
-  return `recipe_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-}
+import { createProjectDbClient } from '../services/database';
 
 export function registerRecipesHandlers(): void {
-  // RECIPES_LIST: List recipes from database with optional filtering
-  ipcMain.handle(IPC_CHANNELS.RECIPES_LIST, async (
-    _event, 
-    filter: RecipeFilter
-  ): Promise<IpcResponse<Recipe[]>> => {
+  // RECIPES_QUERY: 查询配方
+  ipcMain.handle(IPC_CHANNELS.RECIPES_QUERY, async (
+    _event,
+    projectPath: string,
+    params: RecipeQueryParams
+  ): Promise<IpcResponse<{ recipes: Recipe[]; total: number }>> => {
     try {
-      const { modId, recipeTypeId, search } = filter || {};
-      console.log('recipes:list', { modId, recipeTypeId, search });
-
-      // M0 placeholder: Return mock data or empty array (M1 will implement database query)
-      let filteredRecipes = [...mockRecipes];
-
-      if (modId) {
-        filteredRecipes = filteredRecipes.filter(r => r.modId === modId);
-      }
-
-      if (recipeTypeId) {
-        filteredRecipes = filteredRecipes.filter(r => r.recipeTypeId === recipeTypeId);
-      }
-
+      const { search, modid, typeId, page = 1, pageSize = 50 } = params;
+      
+      const db = createProjectDbClient(projectPath);
+      
+      // 构建查询
+      const conditions: string[] = [];
+      const args: (string | number)[] = [];
+      
       if (search) {
-        const searchLower = search.toLowerCase();
-        filteredRecipes = filteredRecipes.filter(r => 
-          r.recipeId.toLowerCase().includes(searchLower)
-        );
+        conditions.push('(recipe_id LIKE ? OR raw_json LIKE ?)');
+        args.push(`%${search}%`, `%${search}%`);
       }
-
-      return { success: true, data: filteredRecipes };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to list recipes';
-      console.error('RECIPES_LIST error:', error);
-      return { success: false, error: errorMessage };
-    }
-  });
-
-  // RECIPES_CREATE: Create a new recipe in database
-  ipcMain.handle(IPC_CHANNELS.RECIPES_CREATE, async (
-    _event, 
-    recipe: Partial<Recipe>
-  ): Promise<IpcResponse<Recipe>> => {
-    try {
-      console.log('recipes:create', recipe);
-
-      if (!recipe.recipeTypeId) {
-        return { success: false, error: 'Recipe type is required' };
-      }
-
-      // M0 placeholder: Create mock recipe (M1 will implement database insert)
-      const newRecipe: Recipe = {
-        recipeId: recipe.recipeId || generateRecipeId(),
-        modId: recipe.modId || 'custom',
-        recipeTypeId: recipe.recipeTypeId,
-        inputSlots: recipe.inputSlots || [],
-        outputSlots: recipe.outputSlots || [],
-        extraProps: recipe.extraProps || {},
-        rawJson: recipe.rawJson || JSON.stringify(recipe),
-      };
-
-      mockRecipes.push(newRecipe);
-
-      return { success: true, data: newRecipe };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create recipe';
-      console.error('RECIPES_CREATE error:', error);
-      return { success: false, error: errorMessage };
-    }
-  });
-
-  // RECIPES_UPDATE: Update an existing recipe in database
-  ipcMain.handle(IPC_CHANNELS.RECIPES_UPDATE, async (
-    _event, 
-    recipe: Partial<Recipe> & { recipeId: string }
-  ): Promise<IpcResponse<Recipe>> => {
-    try {
-      console.log('recipes:update', recipe);
-
-      if (!recipe.recipeId) {
-        return { success: false, error: 'Recipe ID is required' };
-      }
-
-      // M0 placeholder: Update mock recipe (M1 will implement database update)
-      const index = mockRecipes.findIndex(r => r.recipeId === recipe.recipeId);
       
-      if (index === -1) {
-        return { success: false, error: 'Recipe not found' };
+      if (modid) {
+        conditions.push('modid = ?');
+        args.push(modid);
       }
-
-      const updatedRecipe: Recipe = {
-        ...mockRecipes[index],
-        ...recipe,
-        inputSlots: recipe.inputSlots || mockRecipes[index].inputSlots,
-        outputSlots: recipe.outputSlots || mockRecipes[index].outputSlots,
-        extraProps: { ...mockRecipes[index].extraProps, ...recipe.extraProps },
-      };
-
-      mockRecipes[index] = updatedRecipe;
-
-      return { success: true, data: updatedRecipe };
+      
+      if (typeId) {
+        conditions.push('type_id = ?');
+        args.push(typeId);
+      }
+      
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      
+      // 获取总数
+      const countResult = await db.execute({
+        sql: `SELECT COUNT(*) as count FROM recipes ${whereClause}`,
+        args: [...args],
+      });
+      const total = Number(countResult.rows[0]?.count || 0);
+      
+      // 获取数据
+      const result = await db.execute({
+        sql: `SELECT * FROM recipes ${whereClause} ORDER BY recipe_id LIMIT ? OFFSET ?`,
+        args: [...args, pageSize, (page - 1) * pageSize],
+      });
+      
+      const recipes: Recipe[] = result.rows.map((row: any) => ({
+        recipeId: row.recipe_id,
+        typeId: row.type_id,
+        modid: row.modid,
+        hash: row.hash,
+        rawJson: row.raw_json,
+        unparsed: Boolean(row.unparsed),
+      }));
+      
+      await db.close();
+      
+      return { success: true, data: { recipes, total } };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to update recipe';
-      console.error('RECIPES_UPDATE error:', error);
+      const errorMessage = error instanceof Error ? error.message : '查询失败';
       return { success: false, error: errorMessage };
     }
   });
 
-  // RECIPES_DELETE: Delete a recipe from database
-  ipcMain.handle(IPC_CHANNELS.RECIPES_DELETE, async (
-    _event, 
+  // RECIPES_GET_TYPES: 获取配方类型列表
+  ipcMain.handle(IPC_CHANNELS.RECIPES_GET_TYPES, async (
+    _event,
+    projectPath: string
+  ): Promise<IpcResponse<RecipeTypeInfo[]>> => {
+    try {
+      const db = createProjectDbClient(projectPath);
+      
+      const result = await db.execute(`
+        SELECT type_id, COUNT(*) as count 
+        FROM recipes 
+        GROUP BY type_id 
+        ORDER BY count DESC
+      `);
+      
+      await db.close();
+      
+      const types: RecipeTypeInfo[] = result.rows.map((row: any) => ({
+        typeId: row.type_id,
+        displayName: row.type_id.split(':').pop() || row.type_id, // 默认显示名称
+        recipeCount: Number(row.count),
+      }));
+      
+      return { success: true, data: types };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '获取类型失败';
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // RECIPES_GET_DETAIL: 获取配方详情
+  ipcMain.handle(IPC_CHANNELS.RECIPES_GET_DETAIL, async (
+    _event,
+    projectPath: string,
     recipeId: string
-  ): Promise<IpcResponse<{ deleted: boolean }>> => {
+  ): Promise<IpcResponse<Recipe | null>> => {
     try {
-      console.log('recipes:delete', recipeId);
-
-      if (!recipeId || typeof recipeId !== 'string') {
-        return { success: false, error: 'Invalid recipe ID' };
-      }
-
-      // M0 placeholder: Delete from mock storage (M1 will implement database delete)
-      const index = mockRecipes.findIndex(r => r.recipeId === recipeId);
+      const db = createProjectDbClient(projectPath);
       
-      if (index === -1) {
-        return { success: false, error: 'Recipe not found' };
+      const result = await db.execute({
+        sql: 'SELECT * FROM recipes WHERE recipe_id = ?',
+        args: [recipeId],
+      });
+      
+      await db.close();
+      
+      const row = result.rows[0] as any;
+      if (!row) {
+        return { success: true, data: null };
       }
-
-      mockRecipes.splice(index, 1);
-
-      return { success: true, data: { deleted: true } };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete recipe';
-      console.error('RECIPES_DELETE error:', error);
-      return { success: false, error: errorMessage };
-    }
-  });
-
-  // RECIPES_EXPORT: Export recipes as KubeJS script or Datapack
-  ipcMain.handle(IPC_CHANNELS.RECIPES_EXPORT, async (
-    _event, 
-    options: RecipeExportOptions
-  ): Promise<IpcResponse<{ outputPath: string; exportedCount: number }>> => {
-    try {
-      const { format, outputPath, recipeIds } = options || {};
-      console.log('recipes:export', { format, outputPath, recipeIds });
-
-      if (!format || !['kubejs', 'datapack'].includes(format)) {
-        return { success: false, error: 'Invalid export format. Must be "kubejs" or "datapack"' };
-      }
-
-      // M0 placeholder: Return mock export result (M1 will implement actual export)
-      // Determine which recipes to export
-      const recipesToExport = recipeIds 
-        ? mockRecipes.filter(r => recipeIds.includes(r.recipeId))
-        : mockRecipes;
-
-      const mockOutputPath = outputPath || `/mock/export/path/recipes_export_${Date.now()}`;
-
-      const result = {
-        outputPath: mockOutputPath,
-        exportedCount: recipesToExport.length,
+      
+      return {
+        success: true,
+        data: {
+          recipeId: row.recipe_id,
+          typeId: row.type_id,
+          modid: row.modid,
+          hash: row.hash,
+          rawJson: row.raw_json,
+          unparsed: Boolean(row.unparsed),
+        },
       };
-
-      return { success: true, data: result };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to export recipes';
-      console.error('RECIPES_EXPORT error:', error);
+      const errorMessage = error instanceof Error ? error.message : '获取详情失败';
       return { success: false, error: errorMessage };
     }
   });

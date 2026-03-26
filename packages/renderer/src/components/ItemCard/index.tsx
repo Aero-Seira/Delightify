@@ -1,10 +1,7 @@
 /**
- * 改进的物品卡片组件
+ * 改进的物品卡片组件 - v2.1
  * 
- * 特性：
- * 1. 使用 ItemIcon 组件显示2D纹理
- * 2. 统一的 fallback 显示
- * 3. 支持网格、列表、详情三种视图
+ * 适配 v2.1 简化 Item 类型 (itemId, modid)
  */
 
 import React from 'react';
@@ -21,6 +18,25 @@ interface ItemCardProps {
 }
 
 /**
+ * 从 itemId 解析显示名称
+ * 例如: "minecraft:stone" -> "stone"
+ */
+function getItemName(itemId: string): string {
+  const parts = itemId.split(':');
+  return parts[1] || parts[0] || itemId;
+}
+
+/**
+ * 格式化显示名称（首字母大写，下划线替换为空格）
+ */
+function formatDisplayName(name: string): string {
+  return name
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
  * 物品卡片组件 - 网格视图
  */
 export default function ItemCard({
@@ -30,6 +46,9 @@ export default function ItemCard({
   onClick,
   onDoubleClick,
 }: ItemCardProps): React.ReactElement {
+  const itemName = getItemName(item.itemId);
+  const displayName = formatDisplayName(itemName);
+
   return (
     <div
       className={`${styles.card} ${selected ? styles.selected : ''}`}
@@ -39,28 +58,19 @@ export default function ItemCard({
       <div className={styles.imageContainer} style={{ width: size, height: size }}>
         <ItemIcon
           itemId={item.itemId}
-          displayName={item.displayName}
+          displayName={displayName}
           size={size}
         />
       </div>
       
       <div className={styles.info}>
-        <span className={styles.name} title={item.displayName || item.itemId}>
-          {item.displayName || item.itemId}
+        <span className={styles.name} title={displayName}>
+          {displayName}
         </span>
-        <span className={styles.meta} title={`${item.modId}:${item.name || item.itemId.split(':')[1]}`}>
-          {item.modId}:{item.name || item.itemId.split(':')[1]}
+        <span className={styles.meta} title={item.itemId}>
+          {item.itemId}
         </span>
       </div>
-
-      {/* 类别标签 */}
-      {item.category && (
-        <div 
-          className={styles.categoryDot} 
-          title={item.category}
-          data-category={item.category}
-        />
-      )}
     </div>
   );
 }
@@ -74,6 +84,9 @@ export function ItemListRow({
   selected = false,
   onClick,
 }: Omit<ItemCardProps, 'onDoubleClick'>): React.ReactElement {
+  const itemName = getItemName(item.itemId);
+  const displayName = formatDisplayName(itemName);
+
   return (
     <div
       className={`${styles.listRow} ${selected ? styles.selected : ''}`}
@@ -82,17 +95,14 @@ export function ItemListRow({
       <div className={styles.listImage} style={{ width: size, height: size }}>
         <ItemIcon
           itemId={item.itemId}
-          displayName={item.displayName}
+          displayName={displayName}
           size={size}
         />
       </div>
       
       <div className={styles.listInfo}>
-        <span className={styles.listName}>{item.displayName || item.itemId}</span>
-        <span className={styles.listMeta}>
-          {item.modId}:{item.name || item.itemId.split(':')[1]}
-          {item.category && ` · ${item.category}`}
-        </span>
+        <span className={styles.listName}>{displayName}</span>
+        <span className={styles.listMeta}>{item.itemId}</span>
       </div>
     </div>
   );
@@ -107,40 +117,23 @@ export function ItemDetailCard({
   item: Item;
 }): React.ReactElement {
   const size = 128;
+  const itemName = getItemName(item.itemId);
+  const displayName = formatDisplayName(itemName);
 
   return (
     <div className={styles.detailCard}>
       <div className={styles.detailImageContainer}>
         <ItemIcon
           itemId={item.itemId}
-          displayName={item.displayName}
+          displayName={displayName}
           size={size}
         />
       </div>
       
       <div className={styles.detailInfo}>
-        <h3 className={styles.detailName}>{item.displayName || item.itemId}</h3>
-        <p className={styles.detailId}>{item.modId}:{item.name || item.itemId.split(':')[1]}</p>
-        
-        {item.category && (
-          <div className={styles.detailTags}>
-            <span className={styles.tag}>{item.category}</span>
-            {item.textureType && (
-              <span className={styles.tag}>{item.textureType}</span>
-            )}
-          </div>
-        )}
-
-        {item.tagIds && item.tagIds.length > 0 && (
-          <div className={styles.tagsSection}>
-            <h4>标签</h4>
-            <div className={styles.tagList}>
-              {item.tagIds.map(tag => (
-                <span key={tag} className={styles.smallTag}>{tag}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        <h3 className={styles.detailName}>{displayName}</h3>
+        <p className={styles.detailId}>{item.itemId}</p>
+        <p className={styles.detailMod}>模组: {item.modid}</p>
       </div>
     </div>
   );

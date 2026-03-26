@@ -1,9 +1,10 @@
 /**
  * Project Manager Page - 项目管理页面
- * 用于浏览、创建、打开、编辑和删除项目
+ * 适配 v2.1 架构：显示数据导入状态
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { useProjectStore } from '../../store/projectStore';
 import CreateProjectDialog from '../../components/CreateProjectDialog';
@@ -103,6 +104,22 @@ const EditIcon: React.FC = () => (
   </svg>
 );
 
+const ImportIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" x2="12" y1="3" y2="15" />
+  </svg>
+);
+
+const AlertIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" x2="12" y1="8" y2="12" />
+    <line x1="12" x2="12.01" y1="16" y2="16" />
+  </svg>
+);
+
 // ModLoader 显示名称映射
 const modLoaderLabels: Record<ModLoader, string> = {
   forge: 'Forge',
@@ -121,6 +138,7 @@ interface ProjectCardProps {
   onToggleFavorite: (project: Project) => void;
   onDelete: (project: Project) => void;
   onEdit: (project: Project) => void;
+  onImport: (project: Project) => void;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ 
@@ -129,7 +147,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
   onOpen, 
   onToggleFavorite, 
   onDelete,
-  onEdit 
+  onEdit,
+  onImport
 }) => {
   const { t } = useI18n();
   const [showMenu, setShowMenu] = useState(false);
@@ -157,6 +176,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     });
   };
 
+  // 判断是否需要导入数据
+  const needsImport = project.status === 'needs_import' || !project.lastImportedAt;
+  const isReady = project.status === 'ready';
+
   if (viewMode === 'list') {
     return (
       <div className={styles.projectListItem}>
@@ -169,8 +192,19 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
           <div className={styles.projectListMeta}>
             <span className={styles.metaTag}>{project.mcVersion}</span>
             <span className={styles.metaTag}>{modLoaderLabels[project.modLoader]}</span>
-            {project.totalMods > 0 && (
+            {(project.totalMods ?? 0) > 0 && (
               <span className={styles.metaTag}>{project.totalMods} mods</span>
+            )}
+            {needsImport && (
+              <span className={`${styles.metaTag} ${styles.statusTagWarning}`}>
+                <AlertIcon />
+                需要导入数据
+              </span>
+            )}
+            {isReady && (
+              <span className={`${styles.metaTag} ${styles.statusTagSuccess}`}>
+                已导入
+              </span>
             )}
           </div>
         </div>
@@ -195,6 +229,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                   <EditIcon />
                   {t('common.edit')}
                 </button>
+                {needsImport && (
+                  <button onClick={() => { onImport(project); setShowMenu(false); }}>
+                    <ImportIcon />
+                    导入数据
+                  </button>
+                )}
                 <button onClick={() => { onDelete(project); setShowMenu(false); }}>
                   <TrashIcon />
                   {t('common.delete')}
@@ -250,6 +290,19 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             <span>{formatDate(project.lastOpenedAt || project.updatedAt)}</span>
           </div>
         </div>
+
+        {/* 导入状态提示 */}
+        {needsImport && (
+          <div className={styles.importAlert}>
+            <AlertIcon />
+            <span>需要导入 Mod 数据</span>
+          </div>
+        )}
+        {isReady && project.lastImportedAt && (
+          <div className={styles.importInfo}>
+            <span>上次导入: {formatDate(project.lastImportedAt)}</span>
+          </div>
+        )}
       </div>
       
       <div className={styles.projectCardFooter}>
@@ -272,6 +325,12 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 <EditIcon />
                 {t('common.edit')}
               </button>
+              {needsImport && (
+                <button onClick={() => { onImport(project); setShowMenu(false); }}>
+                  <ImportIcon />
+                  导入数据
+                </button>
+              )}
               <button onClick={() => { onDelete(project); setShowMenu(false); }}>
                 <TrashIcon />
                 {t('common.delete')}
@@ -289,6 +348,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
  */
 export default function ProjectManagerPage(): React.ReactElement {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const {
     projects,
     isLoadingProjects,
@@ -353,10 +413,14 @@ export default function ProjectManagerPage(): React.ReactElement {
     setShowDeleteConfirm(null);
   };
 
-  // 处理编辑项目（待实现）
+  // 处理编辑项目
   const handleEditProject = (project: Project) => {
-    // TODO: 实现编辑对话框
     console.log('编辑项目:', project);
+  };
+
+  // 处理导入数据 - 导航到数据导入页面
+  const handleImportData = (project: Project) => {
+    navigate('/mods', { state: { projectId: project.id, autoStart: true } });
   };
 
   return (
@@ -477,6 +541,7 @@ export default function ProjectManagerPage(): React.ReactElement {
               onToggleFavorite={handleToggleFavorite}
               onDelete={(p) => setShowDeleteConfirm(p)}
               onEdit={handleEditProject}
+              onImport={handleImportData}
             />
           ))
         )}

@@ -6,12 +6,14 @@ import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
 import ProjectManagerPage from './pages/ProjectManager';
-import ModManagerPage from './pages/ModManager';
+import DataImportPage from './pages/ModManager';
 import ItemBrowserPage from './pages/ItemBrowser';
 import RecipeBrowserPage from './pages/RecipeBrowser';
 import RecipeEditorPage from './pages/RecipeEditor';
 import ConversionToolPage from './pages/ConversionTool';
 import DebugToolsPage from './pages/DebugTools';
+import ImportEngineTestPage from './pages/ImportEngineTest';
+import { LLMDebug } from './pages/LLMDebug';
 import styles from './App.module.css';
 
 // Inner component that has access to router
@@ -27,8 +29,8 @@ function AppContent(): React.ReactElement {
         return t('nav.dashboard');
       case '/projects':
         return t('nav.projectManager');
-      case '/mods':
-        return t('nav.modManager');
+      case '/data-import':
+        return t('nav.dataImport');
       case '/items':
         return t('nav.itemBrowser');
       case '/recipes':
@@ -39,6 +41,10 @@ function AppContent(): React.ReactElement {
         return t('nav.conversionTool');
       case '/debug':
         return '数据库管理';
+      case '/import-test':
+        return '导入引擎测试';
+      case '/llm-debug':
+        return 'LLM 调试';
       default:
         return t('common.appName');
     }
@@ -61,12 +67,14 @@ function AppContent(): React.ReactElement {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/projects" element={<ProjectManagerPage />} />
-            <Route path="/mods" element={<ModManagerPage />} />
+            <Route path="/data-import" element={<DataImportPage />} />
             <Route path="/items" element={<ItemBrowserPage />} />
             <Route path="/recipes" element={<RecipeBrowserPage />} />
             <Route path="/editor" element={<RecipeEditorPage />} />
             <Route path="/convert" element={<ConversionToolPage />} />
             <Route path="/debug" element={<DebugToolsPage />} />
+            <Route path="/import-test" element={<ImportEngineTestPage />} />
+            <Route path="/llm-debug" element={<LLMDebug />} />
           </Routes>
         </main>
       </div>

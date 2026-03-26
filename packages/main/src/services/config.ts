@@ -188,8 +188,8 @@ export class ConfigLoader {
     const builtinFiles = await this.readJsonFiles(builtinDir);
     for (const file of builtinFiles) {
       const data = await this.parseJsonFile<RecipeTypesFile>(file);
-      if (data?.recipe_types && Array.isArray(data.recipe_types)) {
-        recipeTypes.push(...data.recipe_types);
+      if (data?.recipeTypes && Array.isArray(data.recipeTypes)) {
+        recipeTypes.push(...data.recipeTypes);
       }
     }
 
@@ -197,8 +197,8 @@ export class ConfigLoader {
     const customFiles = await this.readJsonFiles(customDir);
     for (const file of customFiles) {
       const data = await this.parseJsonFile<RecipeTypesFile>(file);
-      if (data?.recipe_types && Array.isArray(data.recipe_types)) {
-        recipeTypes.push(...data.recipe_types);
+      if (data?.recipeTypes && Array.isArray(data.recipeTypes)) {
+        recipeTypes.push(...data.recipeTypes);
       }
     }
 

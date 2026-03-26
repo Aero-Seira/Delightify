@@ -1,5 +1,6 @@
 /**
- * Project types for Delightify
+ * Project types - v2.0
+ * 
  * 项目管理相关类型定义
  */
 
@@ -8,7 +9,7 @@ import type { ModLoader } from '../constants/minecraft';
 export type { ModLoader };
 
 /** 项目状态 */
-export type ProjectStatus = 'loading' | 'ready' | 'error' | 'closed';
+export type ProjectStatus = 'loading' | 'ready' | 'error' | 'closed' | 'needs_import';
 
 /**
  * 项目类型 - 代表一个 Minecraft 整合包项目
@@ -38,12 +39,34 @@ export interface Project {
   isFavorite?: boolean;
   /** 项目图标路径 */
   icon?: string;
+  /** 项目状态 */
+  status?: ProjectStatus;
+  // 统计信息（从数据库实时获取）
+  totalMods?: number;
+  totalRecipes?: number;
+  totalItems?: number;
+  /** 最后数据导入时间 */
+  lastImportedAt?: string;
+}
+
+/**
+ * 项目统计信息
+ */
+export interface ProjectStats {
   /** 模组数量 */
-  totalMods: number;
-  /** 配方数量 */
-  totalRecipes: number;
+  modCount: number;
   /** 物品数量 */
-  totalItems: number;
+  itemCount: number;
+  /** 配方数量 */
+  recipeCount: number;
+  /** 标签数量 */
+  tagCount: number;
+  /** 配方类型数量 */
+  recipeTypeCount: number;
+  /** 最后导入时间 */
+  lastImportedAt?: string;
+  /** 是否需要重新导入 */
+  needsReimport: boolean;
 }
 
 /**
@@ -139,15 +162,13 @@ export interface ProjectDeleteResult {
 }
 
 /**
- * 项目统计信息
+ * 项目统计结果
  */
-export interface ProjectStats {
-  /** 总项目数 */
-  totalProjects: number;
-  /** 收藏项目数 */
-  favoriteProjects: number;
-  /** 按 Minecraft 版本分布 */
-  mcVersionDistribution: Record<string, number>;
-  /** 按模组加载器分布 */
-  modLoaderDistribution: Record<ModLoader, number>;
+export interface ProjectStatsResult {
+  /** 是否成功 */
+  success: boolean;
+  /** 统计信息 */
+  data?: ProjectStats;
+  /** 错误信息 */
+  error?: string;
 }

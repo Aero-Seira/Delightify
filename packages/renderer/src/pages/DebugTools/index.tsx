@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { electronAPI } from '../../ipc';
+import { useProjectStore } from '../../store/projectStore';
 import styles from './style.module.css';
 
 interface TableInfo {
@@ -7,43 +8,29 @@ interface TableInfo {
   rowCount: number;
 }
 
-interface CacheInfo {
-  cacheDir: string;
-  fileCount: number;
-  totalSizeFormatted: string;
-}
-
 export default function DebugToolsPage(): React.ReactElement {
   const [tables, setTables] = useState<TableInfo[]>([]);
-  const [cacheInfo, setCacheInfo] = useState<CacheInfo | null>(null);
-  const [dbPaths, setDbPaths] = useState<Record<string, string> | null>(null);
   const [queryResult, setQueryResult] = useState<unknown[] | null>(null);
   const [query, setQuery] = useState('SELECT * FROM items LIMIT 10');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const { currentProject } = useProjectStore();
 
   // 加载数据库信息
   const loadInfo = async () => {
+    if (!currentProject) {
+      setMessage('请先打开一个项目');
+      return;
+    }
+    
     try {
       setLoading(true);
       const api = electronAPI();
       
       // 获取表信息
-      const tablesRes = await api.debugDbTables();
+      const tablesRes = await api.debugDbTables(currentProject.path);
       if (tablesRes.success) {
         setTables(tablesRes.data || []);
-      }
-      
-      // 获取缓存信息
-      const cacheRes = await api.debugCacheInfo();
-      if (cacheRes.success) {
-        setCacheInfo(cacheRes.data || null);
-      }
-      
-      // 获取数据库路径
-      const pathsRes = await api.debugDbPath();
-      if (pathsRes.success) {
-        setDbPaths(pathsRes.data || null);
       }
     } catch (err) {
       console.error('Failed to load debug info:', err);
@@ -59,10 +46,15 @@ export default function DebugToolsPage(): React.ReactElement {
 
   // 执行查询
   const executeQuery = async () => {
+    if (!currentProject) {
+      setMessage('请先打开一个项目');
+      return;
+    }
+    
     try {
       setLoading(true);
       const api = electronAPI();
-      const result = await api.debugDbQuery(query);
+      const result = await api.debugDbQuery(currentProject.path, query);
       if (result.success) {
         setQueryResult(result.data || []);
         setMessage(null);
@@ -76,36 +68,20 @@ export default function DebugToolsPage(): React.ReactElement {
     }
   };
 
-  // 删除模组
-  const deleteMod = async (modId: string) => {
-    if (!confirm(`确定要删除模组 "${modId}" 及其所有数据吗？`)) return;
-    
-    try {
-      setLoading(true);
-      const api = electronAPI();
-      const result = await api.debugDbDeleteMod(modId);
-      if (result.success) {
-        setMessage(`已删除模组: ${modId}`);
-        loadInfo();
-      } else {
-        setMessage('删除失败: ' + result.error);
-      }
-    } catch (err) {
-      setMessage('删除失败: ' + String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // 清空数据库
   const clearAll = async () => {
-    if (!confirm('⚠️ 危险操作！\n\n确定要清空整个数据库吗？\n所有数据（模组、物品、配方、材质）都将被删除！')) return;
+    if (!currentProject) {
+      setMessage('请先打开一个项目');
+      return;
+    }
+    
+    if (!confirm('⚠️ 危险操作！\n\n确定要清空整个数据库吗？\n所有数据（模组、物品、配方）都将被删除！')) return;
     if (!confirm('再次确认：真的要清空所有数据吗？此操作不可恢复！')) return;
     
     try {
       setLoading(true);
       const api = electronAPI();
-      const result = await api.debugDbClearAll();
+      const result = await api.debugClearData(currentProject.path);
       if (result.success) {
         setMessage('数据库已清空');
         setQueryResult(null);
@@ -131,20 +107,22 @@ export default function DebugToolsPage(): React.ReactElement {
         </div>
       )}
 
-      {/* 数据库路径 */}
+      {/* 项目信息 */}
       <section className={styles.section}>
-        <h2>数据库路径</h2>
-        {dbPaths && (
+        <h2>当前项目</h2>
+        {currentProject ? (
           <div className={styles.pathList}>
             <div className={styles.pathItem}>
-              <span className={styles.pathLabel}>Global DB:</span>
-              <code className={styles.pathValue}>{dbPaths.globalDb}</code>
+              <span className={styles.pathLabel}>项目名称:</span>
+              <code className={styles.pathValue}>{currentProject.name}</code>
             </div>
             <div className={styles.pathItem}>
-              <span className={styles.pathLabel}>Texture Cache:</span>
-              <code className={styles.pathValue}>{dbPaths.textureCache}</code>
+              <span className={styles.pathLabel}>项目路径:</span>
+              <code className={styles.pathValue}>{currentProject.path}</code>
             </div>
           </div>
+        ) : (
+          <p className={styles.warning}>请先打开一个项目</p>
         )}
       </section>
 
@@ -159,23 +137,6 @@ export default function DebugToolsPage(): React.ReactElement {
             </div>
           ))}
         </div>
-      </section>
-
-      {/* 缓存信息 */}
-      <section className={styles.section}>
-        <h2>材质缓存</h2>
-        {cacheInfo && (
-          <div className={styles.cacheCard}>
-            <div className={styles.cacheStat}>
-              <span className={styles.cacheLabel}>文件数量:</span>
-              <span className={styles.cacheValue}>{cacheInfo.fileCount}</span>
-            </div>
-            <div className={styles.cacheStat}>
-              <span className={styles.cacheLabel}>总大小:</span>
-              <span className={styles.cacheValue}>{cacheInfo.totalSizeFormatted}</span>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* 查询工具 */}

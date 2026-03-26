@@ -1,4 +1,5 @@
-// IPC channel constants shared between main and renderer processes
+// IPC channel constants - v2.1
+// 根据 reference_sql/export.sqlite 样例调整
 
 export const IPC_CHANNELS = {
   // Project management
@@ -9,42 +10,43 @@ export const IPC_CHANNELS = {
   PROJECT_UPDATE: 'project:update',
   PROJECT_DELETE: 'project:delete',
   PROJECT_SELECT_DIRECTORY: 'project:select-directory',
+  PROJECT_GET_STATS: 'project:get-stats',
 
-  // JAR import
-  JAR_IMPORT: 'jar:import',
-  JAR_IMPORT_PROGRESS: 'jar:import:progress',
-  JAR_LIST: 'jar:list',
-  JAR_SELECT: 'jar:select',
-  JAR_DELETE: 'jar:delete',
-  JAR_GET_DETAILS: 'jar:get-details',
+  // Mod data import
+  MOD_DATA_DETECT: 'mod-data:detect',
+  MOD_DATA_VALIDATE: 'mod-data:validate',
+  MOD_DATA_IMPORT: 'mod-data:import',
+  MOD_DATA_IMPORT_PROGRESS: 'mod-data:import:progress',
+  MOD_DATA_GET_IMPORT_HISTORY: 'mod-data:get-import-history',
 
   // Item queries
   ITEMS_QUERY: 'items:query',
   ITEMS_GET_BY_MOD: 'items:get-by-mod',
-  ITEMS_GET_TAGS: 'items:get-tags',
-  ITEMS_GET_TEXTURE: 'items:get-texture',
-  ITEMS_GET_TEXTURE_FALLBACK: 'items:get-texture-fallback',
-  ITEMS_GET_ALL_TAGS: 'items:get-all-tags',
-  ITEMS_GET_CATEGORIES: 'items:get-categories',
   ITEMS_GET_DETAIL: 'items:get-detail',
 
-  // Mod queries
+  // Tag & Mod queries
+  TAGS_QUERY: 'tags:query',
   MODS_QUERY: 'mods:query',
 
-  // Tag queries
-  TAGS_QUERY: 'tags:query',
+  // Recipe queries
+  RECIPES_QUERY: 'recipes:query',
+  RECIPES_GET_TYPES: 'recipes:get-types',
+  RECIPES_GET_DETAIL: 'recipes:get-detail',
 
-  // Recipe CRUD
-  RECIPES_LIST: 'recipes:list',
-  RECIPES_CREATE: 'recipes:create',
-  RECIPES_UPDATE: 'recipes:update',
-  RECIPES_DELETE: 'recipes:delete',
-  RECIPES_EXPORT: 'recipes:export',
+  // Recipe editing
+  RECIPE_EDIT_CREATE: 'recipe-edit:create',
+  RECIPE_EDIT_UPDATE: 'recipe-edit:update',
+  RECIPE_EDIT_DELETE: 'recipe-edit:delete',
+  RECIPE_EDIT_LIST: 'recipe-edit:list',
 
-  // LLM conversion
-  LLM_CONVERT: 'llm:convert',
-  LLM_CONVERT_PROGRESS: 'llm:convert:progress',
-  LLM_CANCEL: 'llm:cancel',
+  // Export
+  EXPORT_KUBEJS: 'export:kubejs',
+  EXPORT_DATAPACK: 'export:datapack',
+
+  // Debug
+  DEBUG_DB_TABLES: 'debug:db-tables',
+  DEBUG_DB_QUERY: 'debug:db-query',
+  DEBUG_CLEAR_DATA: 'debug:clear-data',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

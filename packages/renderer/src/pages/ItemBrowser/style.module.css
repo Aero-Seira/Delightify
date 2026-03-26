@@ -381,6 +381,12 @@
   color: #1971c2;
 }
 
+.emptyHint {
+  font-size: 13px;
+  color: #adb5bd;
+  margin-top: 8px;
+}
+
 /* ========== 分页 ========== */
 
 .pagination {
@@ -608,6 +614,10 @@
   .empty button:hover {
     border-color: #4dabf7;
     color: #74c0fc;
+  }
+
+  .emptyHint {
+    color: #868e96;
   }
 
   .content::-webkit-scrollbar-thumb {

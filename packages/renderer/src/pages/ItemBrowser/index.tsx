@@ -3,7 +3,9 @@ import type { Item } from '@delightify/shared';
 import type { ItemCategory } from '../../components/CategoryLegend';
 import ItemCard, { ItemListRow, ItemDetailCard } from '../../components/ItemCard';
 import CategoryLegend from '../../components/CategoryLegend';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import { electronAPI } from '../../ipc';
+import { useProjectStore } from '../../store/projectStore';
 import styles from './style.module.css';
 
 interface QueryFilters {
@@ -11,7 +13,6 @@ interface QueryFilters {
   category: string;
   modId: string;
   tag: string;
-  textureType: 'all' | 'item' | 'block' | 'unknown';
 }
 
 const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
@@ -19,6 +20,8 @@ const VIEW_MODES = ['grid', 'list', 'detail'] as const;
 type ViewMode = typeof VIEW_MODES[number];
 
 export default function ItemBrowser(): React.ReactElement {
+  const { currentProject } = useProjectStore();
+  
   // 数据状态
   const [items, setItems] = useState<Item[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -35,7 +38,6 @@ export default function ItemBrowser(): React.ReactElement {
     category: '',
     modId: '',
     tag: '',
-    textureType: 'all',
   });
   
   // 视图状态
@@ -45,28 +47,30 @@ export default function ItemBrowser(): React.ReactElement {
   const [searchFocused, setSearchFocused] = useState(false);
   
   // 可用选项
-  const [categories, setCategories] = useState<string[]>([]);
-  const [mods, setMods] = useState<string[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [mods, setMods] = useState<Array<{ modid: string; name?: string }>>([]);
+  const [tags, setTags] = useState<Array<{ tagId: string; itemCount: number }>>([]);
 
   // 加载物品数据
   const loadItems = useCallback(async () => {
+    if (!currentProject) {
+      setError('请先打开一个项目');
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     try {
       const api = electronAPI();
-      const response = await api.itemsQuery({
+      const response = await api.itemsQuery(currentProject.path, {
         page: currentPage,
         pageSize,
-        search: filters.search,
-        category: filters.category,
-        modId: filters.modId,
-        tag: filters.tag,
-        textureType: filters.textureType === 'all' ? undefined : filters.textureType,
+        search: filters.search || undefined,
+        modid: filters.modId || undefined,
+        tagId: filters.tag || undefined,
       });
       
       if (response.success && response.data) {
-        setItems(response.data.items as Item[]);
+        setItems(response.data.items);
         setTotalCount(response.data.total);
       } else {
         setError(response.error || '加载失败');
@@ -76,24 +80,21 @@ export default function ItemBrowser(): React.ReactElement {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, pageSize, filters]);
+  }, [currentProject, currentPage, pageSize, filters]);
 
   // 加载可用选项
   const loadOptions = useCallback(async () => {
+    if (!currentProject) return;
+    
     try {
       const api = electronAPI();
-      const [catsResult, modsResult, tagsResult] = await Promise.all([
-        api.itemsGetCategories(),
-        api.modsQuery(),
-        api.tagsQuery(),
+      const [modsResult, tagsResult] = await Promise.all([
+        api.modsQuery(currentProject.path),
+        api.tagsQuery(currentProject.path),
       ]);
       
-      if (catsResult.success && catsResult.data) {
-        setCategories(catsResult.data.map(c => c.category));
-      }
-      
       if (modsResult.success && modsResult.data) {
-        setMods(modsResult.data.map(m => m.modId));
+        setMods(modsResult.data);
       }
       
       if (tagsResult.success && tagsResult.data) {
@@ -102,7 +103,7 @@ export default function ItemBrowser(): React.ReactElement {
     } catch {
       // 静默失败，不影响主功能
     }
-  }, []);
+  }, [currentProject]);
 
   // 初始化加载
   useEffect(() => {
@@ -144,20 +145,27 @@ export default function ItemBrowser(): React.ReactElement {
       category: '',
       modId: '',
       tag: '',
-      textureType: 'all',
     });
     setCurrentPage(1);
   };
 
   // 渲染物品卡片
   const renderItem = (item: Item) => {
-    const isSelected = selectedItem?.id === item.id;
+    // 使用 itemId 作为唯一标识
+    const itemKey = item.itemId || `item-${Math.random()}`;
+    const isSelected = selectedItem?.itemId === item.itemId;
+    
+    // 确保 item 有必要的字段
+    if (!item.itemId) {
+      console.warn('Item missing itemId:', item);
+      return null;
+    }
     
     switch (viewMode) {
       case 'list':
         return (
           <ItemListRow
-            key={item.id}
+            key={itemKey}
             item={item}
             size={32}
             selected={isSelected}
@@ -167,14 +175,14 @@ export default function ItemBrowser(): React.ReactElement {
       case 'detail':
         if (isSelected) {
           return (
-            <div key={item.id} className={styles.detailItemWrapper}>
+            <div key={itemKey} className={styles.detailItemWrapper}>
               <ItemDetailCard item={item} />
             </div>
           );
         }
         return (
           <ItemListRow
-            key={item.id}
+            key={itemKey}
             item={item}
             size={32}
             selected={isSelected}
@@ -184,7 +192,7 @@ export default function ItemBrowser(): React.ReactElement {
       default: // grid
         return (
           <ItemCard
-            key={item.id}
+            key={itemKey}
             item={item}
             size={itemSize}
             selected={isSelected}
@@ -198,9 +206,25 @@ export default function ItemBrowser(): React.ReactElement {
   };
 
   // 检查是否有过滤条件
-  const hasFilters = filters.search || filters.modId || filters.category || filters.textureType !== 'all' || filters.tag;
+  const hasFilters = filters.search || filters.modId || filters.category || filters.tag;
+
+  // 如果没有项目，显示提示
+  if (!currentProject) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.empty}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+            <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z" />
+          </svg>
+          <p>请先打开一个项目</p>
+          <p className={styles.emptyHint}>需要先打开一个整合包项目才能浏览物品</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
+    <ErrorBoundary>
     <div className={styles.container}>
       {/* 工具栏 - 使用 Flexbox 重新布局 */}
       <div className={styles.toolbar}>
@@ -213,7 +237,7 @@ export default function ItemBrowser(): React.ReactElement {
             </svg>
             <input
               type="text"
-              placeholder="搜索物品名称、ID..."
+              placeholder="搜索物品ID..."
               value={filters.search}
               onChange={(e) => updateFilter('search', e.target.value)}
               onFocus={() => setSearchFocused(true)}
@@ -238,30 +262,8 @@ export default function ItemBrowser(): React.ReactElement {
           >
             <option value="">所有模组</option>
             {mods.map(mod => (
-              <option key={mod} value={mod}>{mod}</option>
+              <option key={mod.modid} value={mod.modid}>{mod.name || mod.modid}</option>
             ))}
-          </select>
-
-          <select
-            value={filters.category}
-            onChange={(e) => updateFilter('category', e.target.value)}
-            className={styles.filterSelect}
-          >
-            <option value="">所有类别</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
-
-          <select
-            value={filters.textureType}
-            onChange={(e) => updateFilter('textureType', e.target.value)}
-            className={styles.filterSelect}
-          >
-            <option value="all">所有类型</option>
-            <option value="item">物品</option>
-            <option value="block">方块</option>
-            <option value="unknown">未知</option>
           </select>
 
           <select
@@ -270,8 +272,10 @@ export default function ItemBrowser(): React.ReactElement {
             className={styles.filterSelect}
           >
             <option value="">所有标签</option>
-            {tags.map(tag => (
-              <option key={tag} value={tag}>{tag}</option>
+            {tags.map((tag) => (
+              <option key={tag.tagId} value={tag.tagId}>
+                {tag.tagId} ({tag.itemCount})
+              </option>
             ))}
           </select>
 
@@ -358,18 +362,6 @@ export default function ItemBrowser(): React.ReactElement {
             <button onClick={() => updateFilter('modId', '')}>×</button>
           </span>
         )}
-        {filters.category && (
-          <span className={styles.filterTag}>
-            类别: <strong>{filters.category}</strong>
-            <button onClick={() => updateFilter('category', '')}>×</button>
-          </span>
-        )}
-        {filters.textureType !== 'all' && (
-          <span className={styles.filterTag}>
-            类型: <strong>{filters.textureType === 'block' ? '方块' : filters.textureType === 'item' ? '物品' : '未知'}</strong>
-            <button onClick={() => updateFilter('textureType', 'all')}>×</button>
-          </span>
-        )}
         {filters.tag && (
           <span className={styles.filterTag}>
             标签: <strong>{filters.tag}</strong>
@@ -387,23 +379,38 @@ export default function ItemBrowser(): React.ReactElement {
           </div>
         ) : error ? (
           <div className={styles.error}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
             <p>加载失败: {error}</p>
             <button onClick={loadItems}>重试</button>
           </div>
         ) : items.length === 0 ? (
           <div className={styles.empty}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
             </svg>
-            <p>没有找到匹配的物品</p>
-            {hasFilters && (
-              <button
-                className={styles.clearFilters}
-                onClick={clearFilters}
-              >
-                清除过滤条件
-              </button>
+            {mods.length === 0 ? (
+              <>
+                <p>还没有导入任何数据</p>
+                <p className={styles.emptyHint}>请先前往「数据导入」导入数据</p>
+              </>
+            ) : hasFilters ? (
+              <>
+                <p>没有找到匹配的物品</p>
+                <button
+                  className={styles.clearFilters}
+                  onClick={clearFilters}
+                >
+                  清除过滤条件
+                </button>
+              </>
+            ) : (
+              <p>该项目没有包含任何物品</p>
             )}
           </div>
         ) : (
@@ -483,5 +490,6 @@ export default function ItemBrowser(): React.ReactElement {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

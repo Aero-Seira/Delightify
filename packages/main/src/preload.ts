@@ -1,10 +1,15 @@
+/**
+ * Preload Script - v2.1
+ * 
+ * 根据 reference_sql/export.sqlite 样例调整
+ */
+
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
-console.log('[Preload] Script starting...');
+console.log('[Preload] v2.1 starting...');
 
-// 内联 IPC 通道常量（preload 脚本不能依赖外部 npm 模块）
 const IPC_CHANNELS = {
-  // Project management
+  // Project
   PROJECT_LIST: 'project:list',
   PROJECT_OPEN: 'project:open',
   PROJECT_CREATE: 'project:create',
@@ -12,134 +17,87 @@ const IPC_CHANNELS = {
   PROJECT_UPDATE: 'project:update',
   PROJECT_DELETE: 'project:delete',
   PROJECT_SELECT_DIRECTORY: 'project:select-directory',
+  PROJECT_GET_STATS: 'project:get-stats',
 
-  // JAR import
-  JAR_IMPORT: 'jar:import',
-  JAR_IMPORT_PROGRESS: 'jar:import:progress',
-  JAR_LIST: 'jar:list',
-  JAR_SELECT: 'jar:select',
-  JAR_DELETE: 'jar:delete',
-  JAR_GET_DETAILS: 'jar:get-details',
+  // Mod data
+  MOD_DATA_DETECT: 'mod-data:detect',
+  MOD_DATA_VALIDATE: 'mod-data:validate',
+  MOD_DATA_IMPORT: 'mod-data:import',
+  MOD_DATA_IMPORT_PROGRESS: 'mod-data:import:progress',
+  MOD_DATA_GET_IMPORT_HISTORY: 'mod-data:get-import-history',
 
-  // Item queries
+  // Items
   ITEMS_QUERY: 'items:query',
   ITEMS_GET_BY_MOD: 'items:get-by-mod',
-  ITEMS_GET_TAGS: 'items:get-tags',
-  ITEMS_GET_TEXTURE: 'items:get-texture',
-  ITEMS_GET_TEXTURE_FALLBACK: 'items:get-texture-fallback',
-  ITEMS_GET_ALL_TAGS: 'items:get-all-tags',
-  ITEMS_GET_CATEGORIES: 'items:get-categories',
   ITEMS_GET_DETAIL: 'items:get-detail',
 
-  // Mod queries
+  // Tags & Mods
+  TAGS_QUERY: 'tags:query',
   MODS_QUERY: 'mods:query',
 
-  // Tag queries
-  TAGS_QUERY: 'tags:query',
+  // Recipes
+  RECIPES_QUERY: 'recipes:query',
+  RECIPES_GET_TYPES: 'recipes:get-types',
+  RECIPES_GET_DETAIL: 'recipes:get-detail',
 
-  // Recipe CRUD
-  RECIPES_LIST: 'recipes:list',
-  RECIPES_CREATE: 'recipes:create',
-  RECIPES_UPDATE: 'recipes:update',
-  RECIPES_DELETE: 'recipes:delete',
-  RECIPES_EXPORT: 'recipes:export',
-
-  // LLM conversion
-  LLM_CONVERT: 'llm:convert',
-  LLM_CONVERT_PROGRESS: 'llm:convert:progress',
-  LLM_CANCEL: 'llm:cancel',
-
-  // Debug / Database management
+  // Debug
   DEBUG_DB_TABLES: 'debug:db-tables',
   DEBUG_DB_QUERY: 'debug:db-query',
-  DEBUG_DB_DELETE_MOD: 'debug:db-delete-mod',
-  DEBUG_DB_CLEAR_ALL: 'debug:db-clear-all',
-  DEBUG_CACHE_INFO: 'debug:cache-info',
-  DEBUG_DB_PATH: 'debug:db-path',
-  DEBUG_GET_ITEM_DETAIL: 'debug:get-item-detail',
+  DEBUG_CLEAR_DATA: 'debug:clear-data',
 } as const;
 
-// Expose a safe IPC API to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Project management
+  // ========== 项目管理 ==========
   projectList: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_LIST),
   projectOpen: (projectId?: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_OPEN, projectId),
-  projectCreate: (data: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, data),
-  projectGetCurrent: () =>
-    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_CURRENT),
-  projectUpdate: (projectId: string, data: unknown) =>
+  projectCreate: (data: unknown) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_CREATE, data),
+  projectGetCurrent: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_CURRENT),
+  projectUpdate: (projectId: string, data: unknown) => 
     ipcRenderer.invoke(IPC_CHANNELS.PROJECT_UPDATE, projectId, data),
-  projectDelete: (projectId: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.PROJECT_DELETE, projectId),
+  projectDelete: (projectId: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_DELETE, projectId),
   selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SELECT_DIRECTORY),
+  projectGetStats: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_STATS, projectPath),
 
-  // JAR import
-  jarImport: (filePath: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.JAR_IMPORT, filePath),
-  jarList: () => ipcRenderer.invoke(IPC_CHANNELS.JAR_LIST),
-  jarSelect: () => ipcRenderer.invoke(IPC_CHANNELS.JAR_SELECT),
-  jarDelete: (modId: string) => ipcRenderer.invoke(IPC_CHANNELS.JAR_DELETE, modId),
-  jarGetDetails: (modId: string) => ipcRenderer.invoke(IPC_CHANNELS.JAR_GET_DETAILS, modId),
-  onJarImportProgress: (callback: (progress: unknown) => void) => {
-    const listener = (_event: IpcRendererEvent, progress: unknown) =>
-      callback(progress);
-    ipcRenderer.on(IPC_CHANNELS.JAR_IMPORT_PROGRESS, listener);
-    return () => ipcRenderer.removeListener(IPC_CHANNELS.JAR_IMPORT_PROGRESS, listener);
+  // ========== Mod数据导入 ==========
+  modDataDetect: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.MOD_DATA_DETECT, projectPath),
+  modDataValidate: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.MOD_DATA_VALIDATE, filePath),
+  modDataImport: (projectPath: string, dataFilePath?: string) => 
+    ipcRenderer.invoke(IPC_CHANNELS.MOD_DATA_IMPORT, projectPath, dataFilePath),
+  onModDataImportProgress: (callback: (progress: unknown) => void) => {
+    const listener = (_event: IpcRendererEvent, progress: unknown) => callback(progress);
+    ipcRenderer.on(IPC_CHANNELS.MOD_DATA_IMPORT_PROGRESS, listener);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.MOD_DATA_IMPORT_PROGRESS, listener);
   },
+  modDataGetImportHistory: (projectPath: string) => 
+    ipcRenderer.invoke(IPC_CHANNELS.MOD_DATA_GET_IMPORT_HISTORY, projectPath),
 
-  // Item queries
-  itemsQuery: (query: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_QUERY, query),
-  itemsGetTexture: (itemId: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_TEXTURE, itemId),
-  itemsGetTextureFallback: (itemId: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_TEXTURE_FALLBACK, itemId),
-  itemsGetAllTags: () => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_ALL_TAGS),
-  itemsGetCategories: () => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_CATEGORIES),
-  itemsGetDetail: (itemId: string) => ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_DETAIL, itemId),
+  // ========== 物品查询 ==========
+  itemsQuery: (projectPath: string, params: unknown) => 
+    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_QUERY, projectPath, params),
+  itemsGetByMod: (projectPath: string, modid: string) => 
+    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_BY_MOD, projectPath, modid),
+  itemsGetDetail: (projectPath: string, itemId: string) => 
+    ipcRenderer.invoke(IPC_CHANNELS.ITEMS_GET_DETAIL, projectPath, itemId),
 
-  // Mod queries
-  modsQuery: () => ipcRenderer.invoke(IPC_CHANNELS.MODS_QUERY),
+  // ========== 标签和模组查询 ==========
+  tagsQuery: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.TAGS_QUERY, projectPath),
+  modsQuery: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.MODS_QUERY, projectPath),
 
-  // Tag queries
-  tagsQuery: () => ipcRenderer.invoke(IPC_CHANNELS.TAGS_QUERY),
+  // ========== 配方查询 ==========
+  recipesQuery: (projectPath: string, params: unknown) => 
+    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_QUERY, projectPath, params),
+  recipesGetTypes: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.RECIPES_GET_TYPES, projectPath),
+  recipesGetDetail: (projectPath: string, recipeId: string) => 
+    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_GET_DETAIL, projectPath, recipeId),
 
-  // Recipe CRUD
-  recipesList: (filter: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_LIST, filter),
-  recipesCreate: (recipe: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_CREATE, recipe),
-  recipesUpdate: (recipe: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_UPDATE, recipe),
-  recipesDelete: (recipeId: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_DELETE, recipeId),
-  recipesExport: (options: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.RECIPES_EXPORT, options),
-
-  // LLM conversion
-  llmConvert: (data: unknown) =>
-    ipcRenderer.invoke(IPC_CHANNELS.LLM_CONVERT, data),
-  llmCancel: () => ipcRenderer.invoke(IPC_CHANNELS.LLM_CANCEL),
-  onLlmConvertProgress: (callback: (progress: unknown) => void) => {
-    const listener = (_event: IpcRendererEvent, progress: unknown) =>
-      callback(progress);
-    ipcRenderer.on(IPC_CHANNELS.LLM_CONVERT_PROGRESS, listener);
-    return () =>
-      ipcRenderer.removeListener(IPC_CHANNELS.LLM_CONVERT_PROGRESS, listener);
-  },
-
-  // Shell operations
+  // ========== 通用工具 ==========
   openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url),
 
-  // Debug / Database management
-  debugDbTables: () => ipcRenderer.invoke('debug:db-tables'),
-  debugDbQuery: (sql: string, args?: unknown[]) => ipcRenderer.invoke('debug:db-query', sql, args),
-  debugDbDeleteMod: (modId: string) => ipcRenderer.invoke('debug:db-delete-mod', modId),
-  debugDbClearAll: () => ipcRenderer.invoke('debug:db-clear-all'),
-  debugCacheInfo: () => ipcRenderer.invoke('debug:cache-info'),
-  debugDbPath: () => ipcRenderer.invoke('debug:db-path'),
-  debugGetItemDetail: (itemId: string) => ipcRenderer.invoke('debug:get-item-detail', itemId),
+  // ========== 调试 ==========
+  debugDbTables: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.DEBUG_DB_TABLES, projectPath),
+  debugDbQuery: (projectPath: string, sql: string, args?: unknown[]) => 
+    ipcRenderer.invoke(IPC_CHANNELS.DEBUG_DB_QUERY, projectPath, sql, args),
+  debugClearData: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.DEBUG_CLEAR_DATA, projectPath),
 });
 
-console.log('[Preload] electronAPI exposed successfully');
+console.log('[Preload] v2.1 electronAPI exposed successfully');

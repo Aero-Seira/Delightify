@@ -1,318 +1,467 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+/**
+ * Data Import Page - 数据导入页面
+ * 
+ * 从附属Mod导出的 SQLite 数据文件导入到项目中
+ * 适配 v2.1 架构
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useI18n } from '../../i18n';
-import { electronAPI, checkElectronEnvironment } from '../../ipc';
-import type { Mod } from '@delightify/shared';
+import { useProjectStore } from '../../store/projectStore';
+import { useDataImportStore } from '../../store/dataImportStore';
+import type { ValidationResult } from '@delightify/shared';
 import styles from './style.module.css';
 
-export default function ModManagerPage(): React.ReactElement {
+// Icons
+const DatabaseIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3" />
+    <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+    <path d="M3 12A9 3 0 0 0 21 12" />
+  </svg>
+);
+
+const CheckIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const AlertIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" x2="12" y1="8" y2="12" />
+    <line x1="12" x2="12.01" y1="16" y2="16" />
+  </svg>
+);
+
+const RefreshIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 21h5v-5" />
+  </svg>
+);
+
+const FolderIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+  </svg>
+);
+
+const PackageIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m7.5 4.27 9 5.15" />
+    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+    <path d="m3.3 7 8.7 5 8.7-5" />
+    <path d="M12 22V12" />
+  </svg>
+);
+
+const CubeIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21 16-9.3 5.4a1 1 0 0 1-1 0L2 16" />
+    <path d="m3 11 8.5 5a1 1 0 0 0 1 0L21 11" />
+    <path d="m3 6 8.5 5a1 1 0 0 0 1 0L21 6" />
+  </svg>
+);
+
+const TagIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+    <circle cx="7" cy="7" r="1" />
+  </svg>
+);
+
+const ChevronRightIcon: React.FC = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
+
+/**
+ * 步骤指示器组件
+ */
+interface StepIndicatorProps {
+  currentStep: number;
+  steps: string[];
+}
+
+const StepIndicator: React.FC<StepIndicatorProps> = ({ currentStep, steps }) => {
+  return (
+    <div className={styles.stepIndicator}>
+      {steps.map((step, index) => (
+        <div key={index} className={styles.stepItem}>
+          <div className={`${styles.stepNumber} ${
+            index < currentStep ? styles.stepCompleted :
+            index === currentStep ? styles.stepActive : ''
+          }`}>
+            {index < currentStep ? <CheckIcon /> : index + 1}
+          </div>
+          <span className={styles.stepLabel}>{step}</span>
+          {index < steps.length - 1 && (
+            <div className={`${styles.stepLine} ${index < currentStep ? styles.stepLineCompleted : ''}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/**
+ * 数据预览卡片
+ */
+interface DataPreviewCardProps {
+  icon: React.ReactNode;
+  title: string;
+  count: number;
+  color: 'blue' | 'green' | 'orange' | 'purple';
+}
+
+const DataPreviewCard: React.FC<DataPreviewCardProps> = ({ icon, title, count, color }) => {
+  return (
+    <div className={`${styles.previewCard} ${styles[`color${color}`]}`}>
+      <div className={styles.previewCardIcon}>{icon}</div>
+      <div className={styles.previewCardContent}>
+        <span className={styles.previewCardCount}>{count.toLocaleString()}</span>
+        <span className={styles.previewCardTitle}>{title}</span>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 进度条组件
+ */
+interface ProgressBarProps {
+  progress: { phase: string; percent: number; message: string } | null;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ progress }) => {
+  if (!progress) return null;
+
+  return (
+    <div className={styles.progressContainer}>
+      <div className={styles.progressInfo}>
+        <span className={styles.progressPhase}>{progress.message}</span>
+        <span className={styles.progressPercent}>{progress.percent}%</span>
+      </div>
+      <div className={styles.progressBar}>
+        <div 
+          className={styles.progressFill}
+          style={{ width: `${progress.percent}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/**
+ * 数据导入页面主组件
+ */
+export default function DataImportPage(): React.ReactElement {
   const { t } = useI18n();
-  const [mods, setMods] = useState<Mod[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState<{
-    step: string;
-    percent: number;
-    currentFile?: string;
-    processedCount?: number;
-    totalCount?: number;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-  
-  // 检测运行环境
-  const isElectron = checkElectronEnvironment();
+  const location = useLocation();
+  const { currentProject, loadProjects } = useProjectStore();
+  const {
+    isDetecting,
+    detectedFilePath,
+    detectionError,
+    isValidating,
+    validationResult,
+    validationError,
+    isImporting,
+    importProgress,
+    importResult,
+    importError,
+    detectDataFile,
+    validateDataFile,
+    startImport,
+    resetState,
+  } = useDataImportStore();
 
-  // 加载模组列表
-  const loadMods = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const api = electronAPI();
-      const result = await api.jarList();
-      
-      if (result.success && result.data) {
-        setMods(result.data);
-      } else {
-        setError(result.error || 'Failed to load mods');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const [currentStep, setCurrentStep] = useState(0);
+  const steps = ['检测数据', '预览确认', '执行导入'];
 
-  // 初始加载
+  // 自动开始检测（如果通过导航传入参数）
   useEffect(() => {
-    loadMods();
-  }, [loadMods]);
-
-  // 订阅导入进度
-  useEffect(() => {
-    const api = electronAPI();
-    unsubscribeRef.current = api.onJarImportProgress((progress) => {
-      setImportProgress({
-        step: progress.step,
-        percent: progress.percent,
-        currentFile: progress.currentFile,
-        processedCount: progress.processedCount,
-        totalCount: progress.totalCount,
-      });
-    });
-
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
-  }, []);
-
-  // 选择并导入 JAR 文件
-  const handleImportJar = async () => {
-    try {
-      setIsImporting(true);
-      setError(null);
-      setImportProgress({ step: 'reading', percent: 0 });
-
-      const api = electronAPI();
-      const selectResult = await api.jarSelect();
-      
-      if (!selectResult.success) {
-        setError(selectResult.error || 'Failed to select file');
-        setIsImporting(false);
-        setImportProgress(null);
-        return;
-      }
-
-      const filePath = selectResult.data;
-      if (!filePath) {
-        // 用户取消了选择
-        setIsImporting(false);
-        setImportProgress(null);
-        return;
-      }
-
-      // 开始导入
-      const importResult = await api.jarImport(filePath);
-      
-      if (importResult.success && importResult.data) {
-        // 导入成功，刷新列表
-        await loadMods();
-      } else {
-        setError(importResult.error || 'Failed to import JAR');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error during import');
-    } finally {
-      setIsImporting(false);
-      setImportProgress(null);
+    const state = location.state as { autoStart?: boolean; projectId?: string } | undefined;
+    if (state?.autoStart && currentProject) {
+      handleDetect();
+      // 清除导航状态
+      window.history.replaceState({}, document.title);
     }
-  };
+  }, [location.state, currentProject]);
 
-  // 删除模组
-  const handleDeleteMod = async (modId: string, modName: string) => {
-    // 使用简单的确认对话框
-    const confirmed = typeof window !== 'undefined' && window.confirm 
-      ? window.confirm(`确定要删除模组 "${modName}" 吗？相关的物品和配方数据也会被删除。`)
-      : true;
+  // 检测数据文件
+  const handleDetect = useCallback(async () => {
+    if (!currentProject) return;
     
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const api = electronAPI();
-      const result = await api.jarDelete(modId);
-      
-      if (result.success) {
-        await loadMods();
-      } else {
-        setError(result.error || 'Failed to delete mod');
+    resetState();
+    const filePath = await detectDataFile(currentProject.path);
+    
+    if (filePath) {
+      // 自动进入验证步骤
+      const result = await validateDataFile(filePath);
+      if (result?.valid) {
+        setCurrentStep(1);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [currentProject, detectDataFile, validateDataFile, resetState]);
 
-  // 获取进度条阶段显示文本
-  const getProgressLabel = (step: string): string => {
-    const labels: Record<string, string> = {
-      reading: '读取 JAR 文件...',
-      parsing_lang: '解析语言文件...',
-      parsing_tags: '解析物品标签...',
-      parsing_recipes: '解析配方...',
-      extracting_textures: '提取材质...',
-      saving: '保存到数据库...',
-      completed: '导入完成！',
-      error: '导入出错',
-    };
-    return labels[step] || step;
-  };
+  // 开始导入
+  const handleImport = useCallback(async () => {
+    if (!currentProject) return;
+    
+    setCurrentStep(2);
+    const success = await startImport(currentProject.path, detectedFilePath || undefined);
+    
+    if (success) {
+      // 刷新项目列表以更新统计信息
+      await loadProjects();
+    }
+  }, [currentProject, detectedFilePath, startImport, loadProjects]);
+
+  // 重置并重新开始
+  const handleReset = useCallback(() => {
+    resetState();
+    setCurrentStep(0);
+  }, [resetState]);
+
+  // 如果没有当前项目，显示提示
+  if (!currentProject) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.emptyState}>
+          <FolderIcon />
+          <h2>请先选择一个项目</h2>
+          <p>数据导入需要在打开项目后进行。请先创建或选择一个整合包项目。</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
+      {/* 页面头部 */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.title}>{t('modManager.title')}</h1>
-        <p className={styles.description}>{t('modManager.description')}</p>
+        <div>
+          <h1 className={styles.title}>数据导入</h1>
+          <p className={styles.description}>
+            从附属Mod导出的数据文件导入到项目中
+          </p>
+        </div>
       </div>
-      
-      {/* 浏览器模式提示 */}
-      {!isElectron && (
-        <div className={styles.browserModeBanner}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>
-            <strong>浏览器调试模式</strong> - 
-            当前运行在浏览器环境中，使用的是模拟数据。部分功能（如文件选择、真实数据库操作）不可用。
-            使用 <code>pnpm dev</code> 启动 Electron 以获得完整功能。
-          </span>
+
+      {/* 当前项目信息 */}
+      <div className={styles.projectInfo}>
+        <div className={styles.projectInfoIcon}>
+          <FolderIcon />
+        </div>
+        <div className={styles.projectInfoContent}>
+          <h3>{currentProject.name}</h3>
+          <p>{currentProject.path}</p>
+          <div className={styles.projectInfoTags}>
+            <span className={styles.tag}>{currentProject.mcVersion}</span>
+            <span className={styles.tag}>{currentProject.modLoader}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 步骤指示器 */}
+      <StepIndicator currentStep={currentStep} steps={steps} />
+
+      {/* 错误提示 */}
+      {(detectionError || validationError || importError) && (
+        <div className={styles.errorAlert}>
+          <AlertIcon />
+          <div>
+            <strong>操作失败</strong>
+            <p>{detectionError || validationError || importError}</p>
+          </div>
         </div>
       )}
-      
-      <div className={styles.content}>
-        <div className={styles.actionBar}>
-          <span className={styles.actionBarTitle}>
-            {t('modManager.jarList')} ({mods.length})
-          </span>
-          <button 
-            className={styles.importButton}
-            onClick={handleImportJar}
-            disabled={isImporting || isLoading}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" x2="12" y1="3" y2="15" />
-            </svg>
-            {isImporting ? '导入中...' : t('modManager.importJar')}
-          </button>
-        </div>
 
-        {/* 导入进度显示 */}
-        {isImporting && importProgress && (
-          <div className={styles.progressContainer}>
-            <div className={styles.progressInfo}>
-              <span className={styles.progressLabel}>
-                {getProgressLabel(importProgress.step)}
-              </span>
-              <span className={styles.progressPercent}>
-                {importProgress.percent}%
-              </span>
+      {/* 步骤 1: 检测数据 */}
+      {currentStep === 0 && (
+        <div className={styles.stepContent}>
+          {!isDetecting && !isValidating && !detectedFilePath && (
+            <div className={styles.detectPrompt}>
+              <DatabaseIcon />
+              <h3>检测数据文件</h3>
+              <p>
+                点击下方按钮检测整合包目录中的数据文件。
+                <br />
+                预期路径：<code>delightify/export.sqlite</code>
+              </p>
+              <button className={styles.primaryButton} onClick={handleDetect}>
+                <RefreshIcon />
+                开始检测
+              </button>
             </div>
-            <div className={styles.progressBar}>
-              <div 
-                className={styles.progressFill}
-                style={{ width: `${importProgress.percent}%` }}
-              />
-            </div>
-            {importProgress.currentFile && (
-              <div className={styles.progressFile}>
-                {importProgress.currentFile}
-              </div>
-            )}
-            {importProgress.processedCount !== undefined && importProgress.totalCount !== undefined && (
-              <div className={styles.progressCount}>
-                {importProgress.processedCount} / {importProgress.totalCount}
-              </div>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* 错误提示 */}
-        {error && (
-          <div className={styles.errorMessage}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            {error}
-            <button 
-              className={styles.closeError}
-              onClick={() => setError(null)}
-            >
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* 模组列表 */}
-        <div className={styles.modList}>
-          {isLoading && mods.length === 0 ? (
+          {(isDetecting || isValidating) && (
             <div className={styles.loadingState}>
               <div className={styles.spinner} />
-              <span>加载中...</span>
+              <p>{isDetecting ? '正在检测数据文件...' : '正在验证数据文件...'}</p>
             </div>
-          ) : mods.length === 0 ? (
-            <div className={styles.emptyState}>
-              <svg className={styles.emptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" x2="12" y1="3" y2="15" />
-              </svg>
-              <p className={styles.emptyText}>暂无导入的模组</p>
-              <p className={styles.emptyHint}>点击上方按钮导入 Minecraft 模组 JAR 文件</p>
+          )}
+
+          {detectedFilePath && validationResult && !validationResult.valid && (
+            <div className={styles.detectPrompt}>
+              <AlertIcon />
+              <h3>数据文件验证失败</h3>
+              <p>{validationResult.error || '数据文件格式不正确或已损坏'}</p>
+              <button className={styles.primaryButton} onClick={handleDetect}>
+                <RefreshIcon />
+                重新检测
+              </button>
             </div>
-          ) : (
-            mods.map((mod) => (
-              <div key={mod.modId} className={styles.modCard}>
-                <div className={styles.modInfo}>
-                  <div className={styles.modHeader}>
-                    <h3 className={styles.modName}>{mod.modName}</h3>
-                    <span className={styles.modId}>{mod.modId}</span>
-                  </div>
-                  <div className={styles.modMeta}>
-                    {mod.version && (
-                      <span className={styles.modVersion}>v{mod.version}</span>
-                    )}
-                    {mod.mcVersion && (
-                      <span className={styles.mcVersion}>MC {mod.mcVersion}</span>
-                    )}
-                  </div>
-                  <div className={styles.modStats}>
-                    <span className={styles.stat}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                        <line x1="9" y1="9" x2="15" y2="9" />
-                        <line x1="9" y1="15" x2="15" y2="15" />
-                      </svg>
-                      {mod.itemCount} 物品
-                    </span>
-                    <span className={styles.stat}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14,2 14,8 20,8" />
-                        <line x1="16" y1="13" x2="8" y2="13" />
-                        <line x1="16" y1="17" x2="8" y2="17" />
-                      </svg>
-                      {mod.recipeCount} 配方
-                    </span>
-                  </div>
-                </div>
-                <div className={styles.modActions}>
-                  <button 
-                    className={styles.deleteButton}
-                    onClick={() => handleDeleteMod(mod.modId, mod.modName)}
-                    disabled={isLoading}
-                    title="删除"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3,6 5,6 21,6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))
           )}
         </div>
-      </div>
+      )}
+
+      {/* 步骤 2: 预览确认 */}
+      {currentStep === 1 && validationResult && (
+        <div className={styles.stepContent}>
+          <div className={styles.previewSection}>
+            <h3 className={styles.sectionTitle}>
+              <CheckIcon />
+              数据验证成功
+            </h3>
+            
+            {/* 元信息 */}
+            <div className={styles.metaInfo}>
+              {validationResult.minecraftVersion && (
+                <div className={styles.metaItem}>
+                  <span className={styles.metaLabel}>Minecraft 版本</span>
+                  <span className={styles.metaValue}>{validationResult.minecraftVersion}</span>
+                </div>
+              )}
+              {validationResult.forgeVersion && (
+                <div className={styles.metaItem}>
+                  <span className={styles.metaLabel}>Forge 版本</span>
+                  <span className={styles.metaValue}>{validationResult.forgeVersion}</span>
+                </div>
+              )}
+              {validationResult.exportedAt && (
+                <div className={styles.metaItem}>
+                  <span className={styles.metaLabel}>导出时间</span>
+                  <span className={styles.metaValue}>
+                    {new Date(validationResult.exportedAt).toLocaleString('zh-CN')}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 数据预览卡片 */}
+            <div className={styles.previewCards}>
+              <DataPreviewCard
+                icon={<PackageIcon />}
+                title="模组"
+                count={validationResult.modCount || 0}
+                color="blue"
+              />
+              <DataPreviewCard
+                icon={<CubeIcon />}
+                title="物品"
+                count={validationResult.itemCount || 0}
+                color="green"
+              />
+              <DataPreviewCard
+                icon={<DatabaseIcon />}
+                title="配方"
+                count={validationResult.recipeCount || 0}
+                color="orange"
+              />
+              <DataPreviewCard
+                icon={<TagIcon />}
+                title="标签关联"
+                count={validationResult.tagCount || 0}
+                color="purple"
+              />
+            </div>
+
+            {/* 操作按钮 */}
+            <div className={styles.actionButtons}>
+              <button className={styles.secondaryButton} onClick={handleReset}>
+                重新检测
+              </button>
+              <button className={styles.primaryButton} onClick={handleImport}>
+                开始导入
+                <ChevronRightIcon />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 步骤 3: 执行导入 */}
+      {currentStep === 2 && (
+        <div className={styles.stepContent}>
+          {isImporting && (
+            <div className={styles.importingState}>
+              <DatabaseIcon />
+              <h3>正在导入数据...</h3>
+              <ProgressBar progress={importProgress} />
+            </div>
+          )}
+
+          {!isImporting && importResult && (
+            <div className={styles.importResult}>
+              {importResult.success ? (
+                <>
+                  <div className={styles.successIcon}>
+                    <CheckIcon />
+                  </div>
+                  <h3>导入成功！</h3>
+                  <p>数据已成功导入到项目中</p>
+                  
+                  {importResult.stats && (
+                    <div className={styles.resultStats}>
+                      <div className={styles.resultStat}>
+                        <span className={styles.resultStatValue}>{importResult.stats.modCount}</span>
+                        <span className={styles.resultStatLabel}>模组</span>
+                      </div>
+                      <div className={styles.resultStat}>
+                        <span className={styles.resultStatValue}>{importResult.stats.itemCount}</span>
+                        <span className={styles.resultStatLabel}>物品</span>
+                      </div>
+                      <div className={styles.resultStat}>
+                        <span className={styles.resultStatValue}>{importResult.stats.recipeCount}</span>
+                        <span className={styles.resultStatLabel}>配方</span>
+                      </div>
+                      <div className={styles.resultStat}>
+                        <span className={styles.resultStatValue}>{importResult.stats.tagCount}</span>
+                        <span className={styles.resultStatLabel}>标签</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <button className={styles.primaryButton} onClick={handleReset}>
+                    <RefreshIcon />
+                    再次导入
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className={`${styles.successIcon} ${styles.errorIcon}`}>
+                    <AlertIcon />
+                  </div>
+                  <h3>导入失败</h3>
+                  <p>{importResult.error || '未知错误'}</p>
+                  <button className={styles.primaryButton} onClick={handleImport}>
+                    重试
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

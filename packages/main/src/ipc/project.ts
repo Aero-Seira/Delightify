@@ -1,6 +1,7 @@
 /**
- * Project IPC Handlers - 项目相关的 IPC 处理器
- * 处理项目管理相关的所有主进程操作
+ * Project IPC Handlers - v2.0
+ * 
+ * 项目管理相关的 IPC 处理器
  */
 
 import { ipcMain, dialog } from 'electron';
@@ -12,9 +13,12 @@ import type {
   ProjectListResult, 
   ProjectResult,
   ProjectDeleteResult,
-  ModLoader
+  ProjectStatsResult,
+  ProjectStats,
+  ModLoader,
 } from '@delightify/shared';
 import { appPaths } from '../services/paths';
+import { createProjectDbClient } from '../services/database';
 import { readFile, writeFile, access, mkdir, rm } from 'fs/promises';
 import * as path from 'path';
 
@@ -29,7 +33,6 @@ async function readProjects(): Promise<Project[]> {
     await access(appPaths.projectsJson);
     const content = await readFile(appPaths.projectsJson, 'utf-8');
     const data = JSON.parse(content);
-    // 支持两种格式: 直接数组或 { projects: [] } 包装
     const projects = Array.isArray(data) ? data : data.projects;
     return Array.isArray(projects) ? projects : [];
   } catch {
@@ -60,21 +63,19 @@ function generateProjectId(): string {
  * 验证 Minecraft 版本格式
  */
 function validateMcVersion(version: string): boolean {
-  // 支持 1.16.5, 1.18.2, 1.19.2, 1.20.1 等格式
   return /^1\.\d+(\.\d+)?$/.test(version);
 }
 
 /**
- * 探测模组加载器版本（基于目录结构启发式）
+ * 探测模组加载器
  */
 async function detectModLoader(projectPath: string): Promise<{ modLoader?: ModLoader; modLoaderVersion?: string }> {
   try {
-    const files = await readFile(path.join(projectPath, 'mods'), 'utf-8').catch(() => null);
-    
-    // 检查 version.json（Forge/Fabric 安装器生成）
+    // 检查 version.json
     const versionJsonPath = path.join(projectPath, 'version.json');
-    try {
-      const versionContent = await readFile(versionJsonPath, 'utf-8');
+    const versionContent = await readFile(versionJsonPath, 'utf-8').catch(() => null);
+    
+    if (versionContent) {
       const versionData = JSON.parse(versionContent);
       if (versionData.id) {
         if (versionData.id.includes('forge')) {
@@ -88,17 +89,6 @@ async function detectModLoader(projectPath: string): Promise<{ modLoader?: ModLo
           return { modLoader: 'neoforge' };
         }
       }
-    } catch {
-      // 忽略读取错误
-    }
-    
-    // 检查 mods 目录特征
-    const modsPath = path.join(projectPath, 'mods');
-    try {
-      await access(modsPath);
-      // 进一步检查可以通过扫描 JAR 文件
-    } catch {
-      // 目录不存在
     }
     
     return {};
@@ -108,24 +98,76 @@ async function detectModLoader(projectPath: string): Promise<{ modLoader?: ModLo
 }
 
 /**
- * 统计项目数据（模组、物品、配方数量）
- * 这是一个异步操作，会触发数据库查询
+ * 获取项目统计信息
  */
-async function updateProjectStats(projectPath: string): Promise<{ totalMods: number; totalItems: number; totalRecipes: number }> {
-  // TODO: 实现实际的数据库统计
-  // 这里先返回 0，后续通过数据库服务实现
-  return { totalMods: 0, totalItems: 0, totalRecipes: 0 };
+async function getProjectStats(projectPath: string): Promise<ProjectStats | null> {
+  try {
+    const dbPath = appPaths.projectDb(projectPath);
+    await access(dbPath);
+    
+    const db = createProjectDbClient(dbPath);
+    
+    // 查询各项统计
+    const [modsResult, itemsResult, recipesResult, tagsResult, typesResult, importResult] = await Promise.all([
+      db.execute('SELECT COUNT(*) as count FROM mods'),
+      db.execute('SELECT COUNT(*) as count FROM items'),
+      db.execute('SELECT COUNT(*) as count FROM recipes'),
+      db.execute('SELECT COUNT(*) as count FROM tags'),
+      db.execute('SELECT COUNT(*) as count FROM recipe_types'),
+      db.execute('SELECT imported_at FROM data_imports WHERE is_success = 1 ORDER BY imported_at DESC LIMIT 1'),
+    ]);
+    
+    await db.close();
+    
+    const lastImportedAt = importResult.rows[0]?.imported_at as string | undefined;
+    
+    // 判断是否需要重新导入（超过7天或没有导入记录）
+    let needsReimport = true;
+    if (lastImportedAt) {
+      const lastImport = new Date(lastImportedAt);
+      const daysSinceImport = (Date.now() - lastImport.getTime()) / (1000 * 60 * 60 * 24);
+      needsReimport = daysSinceImport > 7;
+    }
+    
+    return {
+      modCount: Number(modsResult.rows[0]?.count || 0),
+      itemCount: Number(itemsResult.rows[0]?.count || 0),
+      recipeCount: Number(recipesResult.rows[0]?.count || 0),
+      tagCount: Number(tagsResult.rows[0]?.count || 0),
+      recipeTypeCount: Number(typesResult.rows[0]?.count || 0),
+      lastImportedAt,
+      needsReimport,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
  * 注册项目相关的 IPC 处理器
  */
 export function registerProjectHandlers(): void {
-  // ========== PROJECT_LIST: 获取项目列表 ==========
+  // PROJECT_LIST: 获取项目列表
   ipcMain.handle(IPC_CHANNELS.PROJECT_LIST, async (): Promise<ProjectListResult> => {
     try {
       const projects = await readProjects();
-      return { success: true, data: projects, total: projects.length };
+      
+      // 为每个项目获取统计信息
+      const projectsWithStats = await Promise.all(
+        projects.map(async (project) => {
+          const stats = await getProjectStats(project.path);
+          return {
+            ...project,
+            totalMods: stats?.modCount || 0,
+            totalItems: stats?.itemCount || 0,
+            totalRecipes: stats?.recipeCount || 0,
+            lastImportedAt: stats?.lastImportedAt,
+            status: (stats?.needsReimport ? 'needs_import' : stats ? 'ready' : 'needs_import') as Project['status'],
+          };
+        })
+      );
+      
+      return { success: true, data: projectsWithStats, total: projectsWithStats.length };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '读取项目列表失败';
       console.error('PROJECT_LIST 错误:', error);
@@ -133,10 +175,9 @@ export function registerProjectHandlers(): void {
     }
   });
 
-  // ========== PROJECT_OPEN: 打开/选择项目目录 ==========
+  // PROJECT_OPEN: 打开/选择项目
   ipcMain.handle(IPC_CHANNELS.PROJECT_OPEN, async (_event, projectId?: string): Promise<ProjectResult & { canceled?: boolean }> => {
     try {
-      // 如果提供了 projectId，直接打开已有项目
       if (projectId) {
         const projects = await readProjects();
         const project = projects.find(p => p.id === projectId);
@@ -149,11 +190,22 @@ export function registerProjectHandlers(): void {
         project.lastOpenedAt = new Date().toISOString();
         await writeProjects(projects);
         
-        currentProject = project;
-        return { success: true, data: project };
+        // 获取统计信息
+        const stats = await getProjectStats(project.path);
+        
+        currentProject = {
+          ...project,
+          totalMods: stats?.modCount || 0,
+          totalItems: stats?.itemCount || 0,
+          totalRecipes: stats?.recipeCount || 0,
+          lastImportedAt: stats?.lastImportedAt,
+          status: stats?.needsReimport ? 'needs_import' : stats ? 'ready' : 'needs_import',
+        };
+        
+        return { success: true, data: currentProject };
       }
       
-      // 否则显示目录选择对话框
+      // 显示目录选择对话框
       const result = await dialog.showOpenDialog({
         properties: ['openDirectory'],
         title: '选择 Minecraft 整合包目录',
@@ -171,8 +223,18 @@ export function registerProjectHandlers(): void {
       if (existingProject) {
         existingProject.lastOpenedAt = new Date().toISOString();
         await writeProjects(projects);
-        currentProject = existingProject;
-        return { success: true, data: existingProject };
+        
+        const stats = await getProjectStats(existingProject.path);
+        currentProject = {
+          ...existingProject,
+          totalMods: stats?.modCount || 0,
+          totalItems: stats?.itemCount || 0,
+          totalRecipes: stats?.recipeCount || 0,
+          lastImportedAt: stats?.lastImportedAt,
+          status: stats?.needsReimport ? 'needs_import' : stats ? 'ready' : 'needs_import',
+        };
+        
+        return { success: true, data: currentProject };
       }
 
       return { success: true, data: null, error: '该目录尚未创建项目，请先创建项目' };
@@ -183,12 +245,11 @@ export function registerProjectHandlers(): void {
     }
   });
 
-  // ========== PROJECT_CREATE: 创建新项目 ==========
+  // PROJECT_CREATE: 创建新项目
   ipcMain.handle(IPC_CHANNELS.PROJECT_CREATE, async (_event, data: CreateProjectData): Promise<ProjectResult> => {
     try {
       const { name, path: projectPath, mcVersion, modLoader, modLoaderVersion, description } = data;
 
-      // 验证必要参数
       if (!name?.trim()) {
         return { success: false, error: '项目名称不能为空' };
       }
@@ -213,7 +274,6 @@ export function registerProjectHandlers(): void {
       try {
         await access(projectPath);
       } catch {
-        // 目录不存在则创建
         await mkdir(projectPath, { recursive: true });
       }
 
@@ -229,13 +289,9 @@ export function registerProjectHandlers(): void {
         return { success: false, error: '项目名称已存在' };
       }
 
-      // 创建 Delightify 项目目录结构
+      // 创建 Delightify 项目目录
       const delightifyDir = path.join(projectPath, '.delightify');
       await mkdir(delightifyDir, { recursive: true });
-
-      // 创建项目数据库目录（后续初始化数据库）
-      const projectDbPath = appPaths.projectDb(projectPath);
-      await mkdir(path.dirname(projectDbPath), { recursive: true });
 
       // 尝试自动探测模组加载器版本
       let detectedLoaderVersion = modLoaderVersion;
@@ -244,7 +300,6 @@ export function registerProjectHandlers(): void {
         detectedLoaderVersion = detected.modLoaderVersion;
       }
 
-      // 创建项目对象
       const now = new Date().toISOString();
       const newProject: Project = {
         id: generateProjectId(),
@@ -258,6 +313,7 @@ export function registerProjectHandlers(): void {
         updatedAt: now,
         lastOpenedAt: now,
         isFavorite: false,
+        status: 'needs_import',
         totalMods: 0,
         totalItems: 0,
         totalRecipes: 0,
@@ -277,7 +333,7 @@ export function registerProjectHandlers(): void {
     }
   });
 
-  // ========== PROJECT_UPDATE: 更新项目 ==========
+  // PROJECT_UPDATE: 更新项目
   ipcMain.handle(IPC_CHANNELS.PROJECT_UPDATE, async (_event, projectId: string, data: UpdateProjectData): Promise<ProjectResult> => {
     try {
       const projects = await readProjects();
@@ -312,12 +368,11 @@ export function registerProjectHandlers(): void {
       projects[projectIndex] = updatedProject;
       await writeProjects(projects);
 
-      // 如果更新的是当前项目，同步更新内存中的对象
+      // 如果更新的是当前项目，同步更新
       if (currentProject?.id === projectId) {
         currentProject = updatedProject;
       }
 
-      console.log(`项目更新成功: ${updatedProject.name} (${updatedProject.id})`);
       return { success: true, data: updatedProject };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '更新项目失败';
@@ -326,7 +381,7 @@ export function registerProjectHandlers(): void {
     }
   });
 
-  // ========== PROJECT_DELETE: 删除项目 ==========
+  // PROJECT_DELETE: 删除项目
   ipcMain.handle(IPC_CHANNELS.PROJECT_DELETE, async (_event, projectId: string): Promise<ProjectDeleteResult> => {
     try {
       const projects = await readProjects();
@@ -342,22 +397,19 @@ export function registerProjectHandlers(): void {
       projects.splice(projectIndex, 1);
       await writeProjects(projects);
 
-      // 如果删除的是当前项目，清空当前项目
+      // 如果删除的是当前项目，清空
       if (currentProject?.id === projectId) {
         currentProject = null;
       }
 
-      // 可选：删除项目目录中的 .delightify 文件夹
-      // 注意：这里只删除配置，不删除整合包本身
+      // 删除项目配置目录
       try {
         const delightifyDir = path.join(project.path, '.delightify');
         await rm(delightifyDir, { recursive: true, force: true });
-        console.log(`已删除项目配置目录: ${delightifyDir}`);
       } catch {
         // 忽略删除错误
       }
 
-      console.log(`项目删除成功: ${project.name} (${project.id})`);
       return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '删除项目失败';
@@ -366,20 +418,31 @@ export function registerProjectHandlers(): void {
     }
   });
 
-  // ========== PROJECT_GET_CURRENT: 获取当前项目 ==========
+  // PROJECT_GET_CURRENT: 获取当前项目
   ipcMain.handle(IPC_CHANNELS.PROJECT_GET_CURRENT, async (): Promise<ProjectResult> => {
     try {
       return { success: true, data: currentProject };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '获取当前项目失败';
-      console.error('PROJECT_GET_CURRENT 错误:', error);
       return { success: false, error: errorMessage };
     }
   });
 
-  // ========== 额外的辅助 IPC 处理器 ==========
-  
-  // 选择目录对话框（用于创建项目时的路径选择）
+  // PROJECT_GET_STATS: 获取项目统计信息
+  ipcMain.handle(IPC_CHANNELS.PROJECT_GET_STATS, async (_event, projectPath: string): Promise<ProjectStatsResult> => {
+    try {
+      const stats = await getProjectStats(projectPath);
+      if (!stats) {
+        return { success: true, data: { modCount: 0, itemCount: 0, recipeCount: 0, tagCount: 0, recipeTypeCount: 0, needsReimport: true } };
+      }
+      return { success: true, data: stats };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '获取项目统计失败';
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // PROJECT_SELECT_DIRECTORY: 选择目录对话框
   ipcMain.handle(IPC_CHANNELS.PROJECT_SELECT_DIRECTORY, async (): Promise<{ canceled: boolean; filePaths?: string[] }> => {
     const result = await dialog.showOpenDialog({
       properties: ['openDirectory'],
