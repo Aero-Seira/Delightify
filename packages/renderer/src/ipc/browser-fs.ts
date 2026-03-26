@@ -1,5 +1,5 @@
 /**
- * 浏览器文件系统适配器
+ * 浏览器文件系统适配器 - v2.1
  * 使用 File System Access API 模拟 Electron 的 fs/dialog 功能
  */
 
@@ -42,48 +42,6 @@ export async function selectDirectory(): Promise<{ canceled: boolean; filePaths?
   }
 }
 
-/**
- * 选择文件（替代 JAR 选择）
- */
-export async function selectJarFile(): Promise<{ canceled: boolean; filePath?: string; file?: File }> {
-  if (!supportsFileSystemAccess()) {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.jar';
-      input.onchange = () => {
-        if (input.files && input.files[0]) {
-          resolve({ 
-            canceled: false, 
-            filePath: input.files[0].name,
-            file: input.files[0]
-          });
-        } else {
-          resolve({ canceled: true });
-        }
-      };
-      input.click();
-    });
-  }
-
-  try {
-    const [fileHandle] = await (window as any).showOpenFilePicker({
-      types: [{
-        description: 'JAR Files',
-        accept: { 'application/java-archive': ['.jar'] }
-      }]
-    });
-    const file = await fileHandle.getFile();
-    return { 
-      canceled: false, 
-      filePath: file.name,
-      file 
-    };
-  } catch (e) {
-    return { canceled: true };
-  }
-}
-
 // 保存目录句柄到 IndexedDB
 async function saveDirectoryHandle(handle: FileSystemDirectoryHandle): Promise<void> {
   const db = await openDB('fs-handles', 1);
@@ -103,26 +61,4 @@ function openDB(name: string, version: number): Promise<any> {
       }
     };
   });
-}
-
-/**
- * 读取 JAR 文件内容
- * 使用 JSZip 在浏览器中解压
- */
-export async function readJarFile(file: File): Promise<{
-  entries: Array<{ path: string; data: Uint8Array }>;
-}> {
-  const JSZip = await import('jszip');
-  const zip = await JSZip.default.loadAsync(file);
-  
-  const entries: Array<{ path: string; data: Uint8Array }> = [];
-  
-  for (const [path, zipEntry] of Object.entries(zip.files)) {
-    if (!zipEntry.dir) {
-      const data = await zipEntry.async('uint8array');
-      entries.push({ path, data });
-    }
-  }
-  
-  return { entries };
 }

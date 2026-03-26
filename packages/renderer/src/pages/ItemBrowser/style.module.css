@@ -37,35 +37,78 @@
   flex-shrink: 0;
 }
 
-/* 搜索框 */
-.searchBox {
+/* 专业搜索栏 */
+.searchBar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 280px;
-  min-width: 200px;
-  padding: 8px 12px;
+  width: 400px;
+  min-width: 280px;
+  max-width: 500px;
   background: white;
   border: 1px solid #dee2e6;
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all 0.2s ease;
+  overflow: hidden;
 }
 
-.searchBox:hover {
+.searchBar:hover {
   border-color: #adb5bd;
 }
 
-.searchBox.focused {
+.searchBar.focused {
   border-color: #4dabf7;
   box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.15);
 }
 
-.searchBox svg {
+/* 搜索字段选择器 */
+.searchFieldSelector {
+  flex-shrink: 0;
+}
+
+.searchFieldSelector select {
+  padding: 9px 8px 9px 12px;
+  border: none;
+  background: #f8f9fa;
+  font-size: 13px;
+  color: #495057;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  padding-right: 22px;
+  border-radius: 0;
+}
+
+.searchFieldSelector select:hover {
+  background-color: #e9ecef;
+}
+
+/* 分隔线 */
+.searchDivider {
+  width: 1px;
+  height: 24px;
+  background: #dee2e6;
+  flex-shrink: 0;
+}
+
+/* 搜索输入区域 */
+.searchInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 0 12px;
+  min-width: 0;
+}
+
+.searchInputWrapper svg {
   color: #868e96;
   flex-shrink: 0;
 }
 
-.searchBox input {
+.searchInputWrapper input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -73,9 +116,10 @@
   font-size: 14px;
   outline: none;
   color: #212529;
+  padding: 9px 0;
 }
 
-.searchBox input::placeholder {
+.searchInputWrapper input::placeholder {
   color: #adb5bd;
 }
 
@@ -103,20 +147,7 @@
 
 /* 过滤下拉框 */
 .filterSelect {
-  padding: 8px 10px;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  background: white;
-  font-size: 13px;
-  color: #495057;
-  cursor: pointer;
-  min-width: 110px;
-  max-width: 140px;
-}
-
-.filterSelect:focus {
-  outline: none;
-  border-color: #4dabf7;
+  width: 140px;
 }
 
 /* 清除过滤按钮 */

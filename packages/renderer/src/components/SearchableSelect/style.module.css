@@ -1,0 +1,263 @@
+/* 可搜索下拉选择组件样式 */
+
+.container {
+  position: relative;
+  display: inline-block;
+  width: 160px;
+}
+
+.container.open {
+  z-index: 100;
+}
+
+/* 触发器 / 输入框 */
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 0;
+  outline: none;
+}
+
+.trigger:hover {
+  border-color: #adb5bd;
+}
+
+.container.open .trigger {
+  border-color: #4dabf7;
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.15);
+}
+
+.trigger:focus-visible {
+  border-color: #4dabf7;
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.15);
+}
+
+/* 前缀图标 */
+.prefixIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #868e96;
+}
+
+/* 选中的标签文本 */
+.selectedLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #212529;
+}
+
+.selectedLabel.placeholder {
+  color: #868e96;
+}
+
+/* 搜索输入框 */
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font-size: 13px;
+  outline: none;
+  color: #212529;
+  padding: 0;
+}
+
+.searchInput::placeholder {
+  color: #adb5bd;
+}
+
+/* 清除按钮 */
+.clearBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: #e9ecef;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #868e96;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.clearBtn:hover {
+  background: #fa5252;
+  color: white;
+}
+
+/* 下拉箭头 */
+.arrow {
+  flex-shrink: 0;
+  color: #868e96;
+  transition: transform 0.2s ease;
+}
+
+.arrow.open {
+  transform: rotate(180deg);
+}
+
+/* 下拉列表 */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 200px;
+  max-width: 320px;
+  max-height: 320px;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 计数提示 */
+.count {
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #868e96;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 选项列表 */
+.optionsList {
+  overflow-y: auto;
+  max-height: 260px;
+  padding: 4px;
+}
+
+/* 选项 */
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+  min-height: 36px;
+}
+
+.option:hover,
+.option.highlighted {
+  background: #e7f5ff;
+}
+
+.option.selected {
+  color: #1971c2;
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionDescription {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #868e96;
+  background: #f1f3f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.option.selected .optionDescription {
+  background: rgba(25, 113, 194, 0.1);
+  color: #1971c2;
+}
+
+/* 选中标记 */
+.checkmark {
+  flex-shrink: 0;
+  color: #1971c2;
+}
+
+/* 空状态 */
+.empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #868e96;
+}
+
+/* 暗色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .trigger {
+    background: #2a2a2a;
+    border-color: #404040;
+  }
+  
+  .trigger:hover {
+    border-color: #505050;
+  }
+  
+  .container.open .trigger,
+  .trigger:focus-visible {
+    border-color: #4dabf7;
+    box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.2);
+  }
+  
+  .selectedLabel {
+    color: #e0e0e0;
+  }
+  
+  .searchInput {
+    color: #e0e0e0;
+  }
+  
+  .dropdown {
+    background: #2a2a2a;
+    border-color: #404040;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  .count {
+    background: #333;
+    border-bottom-color: #404040;
+    color: #999;
+  }
+  
+  .option:hover,
+  .option.highlighted {
+    background: rgba(77, 171, 247, 0.2);
+  }
+  
+  .optionDescription {
+    background: #404040;
+    color: #999;
+  }
+  
+  .empty {
+    color: #868e96;
+  }
+}

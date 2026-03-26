@@ -44,6 +44,7 @@ export interface ElectronAPI {
   itemsQuery: (projectPath: string, params: ItemQueryParams) => Promise<{ success: boolean; data?: ItemQueryResult; error?: string }>;
   itemsGetByMod: (projectPath: string, modid: string) => Promise<{ success: boolean; data?: Item[]; error?: string }>;
   itemsGetDetail: (projectPath: string, itemId: string) => Promise<{ success: boolean; data?: (Item & { tags: string[] }) | null; error?: string }>;
+  itemsGetTexture: (projectPath: string, itemId: string) => Promise<{ success: boolean; data?: { base64: string; mimeType: string } | null; error?: string }>;
 
   // ========== 标签和模组查询 ==========
   tagsQuery: (projectPath: string) => Promise<{ success: boolean; data?: TagInfo[]; error?: string }>;

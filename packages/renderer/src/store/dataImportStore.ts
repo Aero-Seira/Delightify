@@ -75,10 +75,13 @@ export const useDataImportStore = create<DataImportState>((set, get) => ({
    * 检测数据文件
    */
   detectDataFile: async (projectPath: string) => {
+    console.log('[DataImportStore] detectDataFile called with path:', projectPath);
     set({ isDetecting: true, detectionError: null, detectedFilePath: null });
     
     try {
+      console.log('[DataImportStore] Calling electronAPI.modDataDetect...');
       const result = await electronAPI().modDataDetect(projectPath);
+      console.log('[DataImportStore] modDataDetect result:', result);
       
       if (result.success && result.data) {
         set({ 
@@ -94,6 +97,7 @@ export const useDataImportStore = create<DataImportState>((set, get) => ({
         return null;
       }
     } catch (error) {
+      console.error('[DataImportStore] detectDataFile error:', error);
       set({ 
         detectionError: error instanceof Error ? error.message : '检测数据文件失败',
         isDetecting: false 

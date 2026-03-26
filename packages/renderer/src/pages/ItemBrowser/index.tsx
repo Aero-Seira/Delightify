@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Item } from '@delightify/shared';
+import type { Item, SearchField } from '@delightify/shared';
 import type { ItemCategory } from '../../components/CategoryLegend';
 import ItemCard, { ItemListRow, ItemDetailCard } from '../../components/ItemCard';
 import CategoryLegend from '../../components/CategoryLegend';
+import SearchableSelect from '../../components/SearchableSelect';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { electronAPI } from '../../ipc';
 import { useProjectStore } from '../../store/projectStore';
@@ -10,10 +11,18 @@ import styles from './style.module.css';
 
 interface QueryFilters {
   search: string;
+  searchField: SearchField;
   category: string;
   modId: string;
   tag: string;
 }
+
+const SEARCH_FIELD_OPTIONS: { value: SearchField; label: string; icon: string }[] = [
+  { value: 'all', label: '全部', icon: '🔍' },
+  { value: 'id', label: 'ID', icon: '🆔' },
+  { value: 'name', label: '名称', icon: '📝' },
+  { value: 'tag', label: '标签', icon: '🏷️' },
+];
 
 const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
 const VIEW_MODES = ['grid', 'list', 'detail'] as const;
@@ -35,6 +44,7 @@ export default function ItemBrowser(): React.ReactElement {
   // 过滤状态
   const [filters, setFilters] = useState<QueryFilters>({
     search: '',
+    searchField: 'all',
     category: '',
     modId: '',
     tag: '',
@@ -65,6 +75,7 @@ export default function ItemBrowser(): React.ReactElement {
         page: currentPage,
         pageSize,
         search: filters.search || undefined,
+        searchField: filters.searchField,
         modid: filters.modId || undefined,
         tagId: filters.tag || undefined,
       });
@@ -142,12 +153,16 @@ export default function ItemBrowser(): React.ReactElement {
   const clearFilters = () => {
     setFilters({
       search: '',
+      searchField: 'all',
       category: '',
       modId: '',
       tag: '',
     });
     setCurrentPage(1);
   };
+
+  // 获取当前搜索字段的显示文本
+  const currentSearchFieldLabel = SEARCH_FIELD_OPTIONS.find(opt => opt.value === filters.searchField)?.label || '全部';
 
   // 渲染物品卡片
   const renderItem = (item: Item) => {
@@ -229,55 +244,90 @@ export default function ItemBrowser(): React.ReactElement {
       {/* 工具栏 - 使用 Flexbox 重新布局 */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          {/* 搜索框 */}
-          <div className={`${styles.searchBox} ${searchFocused ? styles.focused : ''}`}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="搜索物品ID..."
-              value={filters.search}
-              onChange={(e) => updateFilter('search', e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
-            {filters.search && (
-              <button 
-                className={styles.clearSearch}
-                onClick={() => updateFilter('search', '')}
-                title="清除搜索"
+          {/* 专业搜索栏 */}
+          <div className={`${styles.searchBar} ${searchFocused ? styles.focused : ''}`}>
+            {/* 搜索字段选择器 */}
+            <div className={styles.searchFieldSelector}>
+              <select
+                value={filters.searchField}
+                onChange={(e) => updateFilter('searchField', e.target.value as SearchField)}
+                title="选择搜索字段"
               >
-                ×
-              </button>
-            )}
+                {SEARCH_FIELD_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.icon} {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* 分隔线 */}
+            <div className={styles.searchDivider} />
+            
+            {/* 搜索输入框 */}
+            <div className={styles.searchInputWrapper}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder={
+                  filters.searchField === 'id' ? '搜索物品ID...' :
+                  filters.searchField === 'name' ? '搜索中文名称...' :
+                  filters.searchField === 'tag' ? '搜索标签ID...' :
+                  '搜索ID、名称或标签...'
+                }
+                value={filters.search}
+                onChange={(e) => updateFilter('search', e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+              />
+              {filters.search && (
+                <button 
+                  className={styles.clearSearch}
+                  onClick={() => updateFilter('search', '')}
+                  title="清除搜索"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* 过滤下拉框组 */}
-          <select
+          {/* 模组筛选 - 可搜索 */}
+          <SearchableSelect
             value={filters.modId}
-            onChange={(e) => updateFilter('modId', e.target.value)}
+            options={[
+              { value: '', label: '所有模组' },
+              ...mods.map(mod => ({
+                value: mod.modid,
+                label: mod.name || mod.modid,
+                description: mod.name ? mod.modid : undefined,
+              })),
+            ]}
+            placeholder="📦 所有模组"
+            onChange={(value) => updateFilter('modId', value)}
             className={styles.filterSelect}
-          >
-            <option value="">所有模组</option>
-            {mods.map(mod => (
-              <option key={mod.modid} value={mod.modid}>{mod.name || mod.modid}</option>
-            ))}
-          </select>
+            title="筛选模组"
+          />
 
-          <select
+          {/* 标签筛选 - 可搜索 */}
+          <SearchableSelect
             value={filters.tag}
-            onChange={(e) => updateFilter('tag', e.target.value)}
+            options={[
+              { value: '', label: '所有标签' },
+              ...tags.map(tag => ({
+                value: tag.tagId,
+                label: tag.tagId,
+                description: `${tag.itemCount} 个物品`,
+              })),
+            ]}
+            placeholder="🏷️ 所有标签"
+            onChange={(value) => updateFilter('tag', value)}
             className={styles.filterSelect}
-          >
-            <option value="">所有标签</option>
-            {tags.map((tag) => (
-              <option key={tag.tagId} value={tag.tagId}>
-                {tag.tagId} ({tag.itemCount})
-              </option>
-            ))}
-          </select>
+            title="筛选标签"
+          />
 
           {/* 清除过滤按钮 */}
           {hasFilters && (
@@ -352,7 +402,8 @@ export default function ItemBrowser(): React.ReactElement {
         <span className={styles.count}>共 {totalCount.toLocaleString()} 个物品</span>
         {filters.search && (
           <span className={styles.filterTag}>
-            搜索: <strong>{filters.search}</strong>
+            {SEARCH_FIELD_OPTIONS.find(o => o.value === filters.searchField)?.label}:
+            <strong>{filters.search}</strong>
             <button onClick={() => updateFilter('search', '')}>×</button>
           </span>
         )}

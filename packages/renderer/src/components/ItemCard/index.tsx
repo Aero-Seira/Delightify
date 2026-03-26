@@ -47,7 +47,8 @@ export default function ItemCard({
   onDoubleClick,
 }: ItemCardProps): React.ReactElement {
   const itemName = getItemName(item.itemId);
-  const displayName = formatDisplayName(itemName);
+  // 优先使用中文翻译，如果没有则使用格式化后的英文名称
+  const displayName = item.displayName || formatDisplayName(itemName);
 
   return (
     <div
@@ -85,7 +86,8 @@ export function ItemListRow({
   onClick,
 }: Omit<ItemCardProps, 'onDoubleClick'>): React.ReactElement {
   const itemName = getItemName(item.itemId);
-  const displayName = formatDisplayName(itemName);
+  // 优先使用中文翻译，如果没有则使用格式化后的英文名称
+  const displayName = item.displayName || formatDisplayName(itemName);
 
   return (
     <div
@@ -118,7 +120,8 @@ export function ItemDetailCard({
 }): React.ReactElement {
   const size = 128;
   const itemName = getItemName(item.itemId);
-  const displayName = formatDisplayName(itemName);
+  // 优先使用中文翻译，如果没有则使用格式化后的英文名称
+  const displayName = item.displayName || formatDisplayName(itemName);
 
   return (
     <div className={styles.detailCard}>

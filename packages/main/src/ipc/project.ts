@@ -107,14 +107,14 @@ async function getProjectStats(projectPath: string): Promise<ProjectStats | null
     
     const db = createProjectDbClient(dbPath);
     
-    // 查询各项统计
+    // 查询各项统计（使用正确的表名）
     const [modsResult, itemsResult, recipesResult, tagsResult, typesResult, importResult] = await Promise.all([
-      db.execute('SELECT COUNT(*) as count FROM mods'),
-      db.execute('SELECT COUNT(*) as count FROM items'),
-      db.execute('SELECT COUNT(*) as count FROM recipes'),
-      db.execute('SELECT COUNT(*) as count FROM tags'),
-      db.execute('SELECT COUNT(*) as count FROM recipe_types'),
-      db.execute('SELECT imported_at FROM data_imports WHERE is_success = 1 ORDER BY imported_at DESC LIMIT 1'),
+      db.execute('SELECT COUNT(*) as count FROM mods').catch(() => ({ rows: [{ count: 0 }] })),
+      db.execute('SELECT COUNT(*) as count FROM items').catch(() => ({ rows: [{ count: 0 }] })),
+      db.execute('SELECT COUNT(*) as count FROM recipes').catch(() => ({ rows: [{ count: 0 }] })),
+      db.execute('SELECT COUNT(DISTINCT tag_id) as count FROM item_tags').catch(() => ({ rows: [{ count: 0 }] })),
+      db.execute('SELECT COUNT(DISTINCT type_id) as count FROM recipes').catch(() => ({ rows: [{ count: 0 }] })),
+      db.execute('SELECT imported_at FROM data_imports WHERE is_success = 1 ORDER BY imported_at DESC LIMIT 1').catch(() => ({ rows: [] })),
     ]);
     
     await db.close();
@@ -292,6 +292,12 @@ export function registerProjectHandlers(): void {
       // 创建 Delightify 项目目录
       const delightifyDir = path.join(projectPath, '.delightify');
       await mkdir(delightifyDir, { recursive: true });
+
+      // 初始化项目数据库
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
+      await db.close();
+      console.log(`[Project] Database initialized: ${dbPath}`);
 
       // 尝试自动探测模组加载器版本
       let detectedLoaderVersion = modLoaderVersion;

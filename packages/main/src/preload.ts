@@ -58,6 +58,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_SELECT_DIRECTORY),
   projectGetStats: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.PROJECT_GET_STATS, projectPath),
 
+  // ========== 物品纹理 ==========
+  itemsGetTexture: (projectPath: string, itemId: string) => 
+    ipcRenderer.invoke('items:get-texture', projectPath, itemId),
+
   // ========== Mod数据导入 ==========
   modDataDetect: (projectPath: string) => ipcRenderer.invoke(IPC_CHANNELS.MOD_DATA_DETECT, projectPath),
   modDataValidate: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.MOD_DATA_VALIDATE, filePath),

@@ -9,9 +9,9 @@ import type { ValidationResult } from './types';
 
 // 附属Mod数据文件预期路径
 export const DATA_FILE_PATHS = [
-  'delightify/export.sqlite',
-  '.delightify/export.sqlite',
-  'config/delightify/export.sqlite',
+  'delightify-export/export.sqlite',
+  '.delightify-export/export.sqlite',
+  'config/delightify-export/export.sqlite',
 ];
 
 /**

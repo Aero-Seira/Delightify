@@ -37,13 +37,16 @@ export function registerModDataHandlers(): void {
     _event,
     projectPath: string
   ): Promise<IpcResponse<{ filePath: string | null; found: boolean }>> => {
+    console.log('[IPC] MOD_DATA_DETECT called with path:', projectPath);
     try {
       const filePath = await detectModDataFile(projectPath);
+      console.log('[IPC] MOD_DATA_DETECT result:', filePath);
       return {
         success: true,
         data: { filePath, found: filePath !== null },
       };
     } catch (error) {
+      console.error('[IPC] MOD_DATA_DETECT error:', error);
       const errorMessage = error instanceof Error ? error.message : '检测失败';
       return { success: false, error: errorMessage };
     }

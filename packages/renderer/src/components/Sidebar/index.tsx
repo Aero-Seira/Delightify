@@ -58,26 +58,6 @@ const DebugIcon: React.FC = () => (
   </svg>
 );
 
-const TestTubeIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14.5 2v6.5a2.5 2.5 0 0 1-5 0V2" />
-    <path d="M8.5 2h7" />
-    <path d="M14.5 13.5a2.5 2.5 0 0 1-5 0V2" />
-    <path d="M6.5 13.5a2.5 2.5 0 0 0 5 0V2" />
-    <path d="M4.5 13.5a4.5 4.5 0 0 0 4.5 4.5h6a4.5 4.5 0 0 0 4.5-4.5V2" />
-  </svg>
-);
-
-const LLMIcon: React.FC = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3Z" />
-    <path d="M12 5v14" />
-    <path d="M8 9h8" />
-    <path d="M8 12h8" />
-    <path d="M8 15h8" />
-  </svg>
-);
-
 const HomeIcon: React.FC = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -126,9 +106,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }: SidebarProps): 
     { to: '/recipes', icon: RecipeBrowserIcon, label: t('nav.recipeBrowser'), exact: false },
     { to: '/editor', icon: RecipeEditorIcon, label: t('nav.recipeEditor'), exact: false },
     { to: '/convert', icon: ConversionToolIcon, label: t('nav.conversionTool'), exact: false },
-    { to: '/import-test', icon: TestTubeIcon, label: '引擎测试', exact: false },
     { to: '/debug', icon: DebugIcon, label: '数据库管理', exact: false },
-    { to: '/llm-debug', icon: LLMIcon, label: 'LLM 调试', exact: false },
   ];
 
   const isActive = (to: string, exact: boolean): boolean => {

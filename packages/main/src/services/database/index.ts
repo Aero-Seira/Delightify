@@ -1,7 +1,8 @@
 /**
- * Database Service Layer - v2.0
+ * Database Service Layer - v2.1
  * 
  * 统一导出数据库相关的所有模块
+ * 支持动态 schema 扩展
  * 
  * @example
  * ```ts
@@ -14,6 +15,17 @@
 
 // Schema definitions
 export * from './schema';
+
+// Schema manager (动态扩展)
+export {
+  SchemaManager,
+  createSchemaManager,
+  initializeDatabaseWithExtensions,
+  CORE_TABLES,
+  type ColumnDef,
+  type TableDef,
+  type ExtendedField,
+} from './schema-manager';
 
 // Client factories
 export {

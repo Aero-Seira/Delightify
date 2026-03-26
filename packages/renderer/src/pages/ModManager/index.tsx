@@ -197,17 +197,27 @@ export default function DataImportPage(): React.ReactElement {
 
   // 检测数据文件
   const handleDetect = useCallback(async () => {
-    if (!currentProject) return;
+    console.log('[DataImport] handleDetect called, currentProject:', currentProject?.path);
+    if (!currentProject) {
+      console.log('[DataImport] No current project, returning');
+      return;
+    }
     
     resetState();
+    console.log('[DataImport] Calling detectDataFile...');
     const filePath = await detectDataFile(currentProject.path);
+    console.log('[DataImport] detectDataFile result:', filePath);
     
     if (filePath) {
       // 自动进入验证步骤
+      console.log('[DataImport] File found, validating...');
       const result = await validateDataFile(filePath);
+      console.log('[DataImport] validateDataFile result:', result);
       if (result?.valid) {
         setCurrentStep(1);
       }
+    } else {
+      console.log('[DataImport] File not found');
     }
   }, [currentProject, detectDataFile, validateDataFile, resetState]);
 
@@ -294,7 +304,7 @@ export default function DataImportPage(): React.ReactElement {
               <p>
                 点击下方按钮检测整合包目录中的数据文件。
                 <br />
-                预期路径：<code>delightify/export.sqlite</code>
+                预期路径：<code>delightify-export/export.sqlite</code>
               </p>
               <button className={styles.primaryButton} onClick={handleDetect}>
                 <RefreshIcon />

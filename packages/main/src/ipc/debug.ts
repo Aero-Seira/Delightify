@@ -8,6 +8,7 @@ import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '@delightify/shared';
 import type { IpcResponse } from '@delightify/shared';
 import { createProjectDbClient } from '../services/database';
+import { appPaths } from '../services/paths';
 
 export function registerDebugHandlers(): void {
   // DEBUG_DB_TABLES: 获取数据库表信息
@@ -16,7 +17,8 @@ export function registerDebugHandlers(): void {
     projectPath: string
   ): Promise<IpcResponse<Array<{ name: string; rowCount: number }>>> => {
     try {
-      const db = createProjectDbClient(projectPath);
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
       
       const tablesResult = await db.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -58,7 +60,8 @@ export function registerDebugHandlers(): void {
         return { success: false, error: '只允许 SELECT 查询' };
       }
       
-      const db = createProjectDbClient(projectPath);
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
       
       const result = await db.execute({
         sql,
@@ -80,7 +83,8 @@ export function registerDebugHandlers(): void {
     projectPath: string
   ): Promise<IpcResponse<{ cleared: boolean }>> => {
     try {
-      const db = createProjectDbClient(projectPath);
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
       
       // 清空核心数据表（保留结构和编辑历史）
       const tablesToClear = ['recipes', 'item_tags', 'items', 'mods', 'manifest'];

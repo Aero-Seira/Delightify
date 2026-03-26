@@ -12,8 +12,6 @@ import RecipeBrowserPage from './pages/RecipeBrowser';
 import RecipeEditorPage from './pages/RecipeEditor';
 import ConversionToolPage from './pages/ConversionTool';
 import DebugToolsPage from './pages/DebugTools';
-import ImportEngineTestPage from './pages/ImportEngineTest';
-import { LLMDebug } from './pages/LLMDebug';
 import styles from './App.module.css';
 
 // Inner component that has access to router
@@ -41,10 +39,6 @@ function AppContent(): React.ReactElement {
         return t('nav.conversionTool');
       case '/debug':
         return '数据库管理';
-      case '/import-test':
-        return '导入引擎测试';
-      case '/llm-debug':
-        return 'LLM 调试';
       default:
         return t('common.appName');
     }
@@ -73,8 +67,6 @@ function AppContent(): React.ReactElement {
             <Route path="/editor" element={<RecipeEditorPage />} />
             <Route path="/convert" element={<ConversionToolPage />} />
             <Route path="/debug" element={<DebugToolsPage />} />
-            <Route path="/import-test" element={<ImportEngineTestPage />} />
-            <Route path="/llm-debug" element={<LLMDebug />} />
           </Routes>
         </main>
       </div>

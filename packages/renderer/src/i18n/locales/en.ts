@@ -132,7 +132,7 @@ const en: TranslationData = {
     importSuccess: 'Import Successful!',
     importFailed: 'Import Failed',
     noDataFile: 'No data file detected',
-    dataFileHint: 'Please ensure delightify/export.sqlite exists in the modpack directory',
+    dataFileHint: 'Please ensure delightify-export/export.sqlite exists in the modpack directory',
     validationFailed: 'Data file validation failed',
     stats: {
       mods: 'Mods',

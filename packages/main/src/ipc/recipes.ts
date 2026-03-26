@@ -13,6 +13,7 @@ import type {
   RecipeTypeInfo,
 } from '@delightify/shared';
 import { createProjectDbClient } from '../services/database';
+import { appPaths } from '../services/paths';
 
 export function registerRecipesHandlers(): void {
   // RECIPES_QUERY: 查询配方
@@ -24,7 +25,8 @@ export function registerRecipesHandlers(): void {
     try {
       const { search, modid, typeId, page = 1, pageSize = 50 } = params;
       
-      const db = createProjectDbClient(projectPath);
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
       
       // 构建查询
       const conditions: string[] = [];
@@ -84,7 +86,8 @@ export function registerRecipesHandlers(): void {
     projectPath: string
   ): Promise<IpcResponse<RecipeTypeInfo[]>> => {
     try {
-      const db = createProjectDbClient(projectPath);
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
       
       const result = await db.execute(`
         SELECT type_id, COUNT(*) as count 
@@ -115,7 +118,8 @@ export function registerRecipesHandlers(): void {
     recipeId: string
   ): Promise<IpcResponse<Recipe | null>> => {
     try {
-      const db = createProjectDbClient(projectPath);
+      const dbPath = appPaths.projectDb(projectPath);
+      const db = createProjectDbClient(dbPath);
       
       const result = await db.execute({
         sql: 'SELECT * FROM recipes WHERE recipe_id = ?',
