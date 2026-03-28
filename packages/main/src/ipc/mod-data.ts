@@ -62,6 +62,9 @@ export function registerModDataHandlers(): void {
     forgeVersion?: string;
     exportedAt?: string;
     modCount?: number;
+    itemCount?: number;
+    recipeCount?: number;
+    tagCount?: number;
     error?: string 
   }>> => {
     try {
@@ -74,6 +77,9 @@ export function registerModDataHandlers(): void {
           forgeVersion: result.forgeVersion,
           exportedAt: result.exportedAt,
           modCount: result.modCount,
+          itemCount: result.itemCount,
+          recipeCount: result.recipeCount,
+          tagCount: result.tagCount,
           error: result.error,
         },
       };

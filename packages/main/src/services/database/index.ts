@@ -30,6 +30,7 @@ export {
 // Client factories
 export {
   createProjectDbClient,
+  closeProjectDbClient,
   closeAllConnections,
   clearDbCache,
   schema,

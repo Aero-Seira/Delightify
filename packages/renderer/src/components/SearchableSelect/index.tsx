@@ -6,6 +6,8 @@
  * - 输入过滤选项
  * - 键盘导航（上下箭头、回车、ESC）
  * - 清空选择
+ * - 显示匹配数量
+ * - 隐藏无结果选项
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -15,6 +17,8 @@ export interface SearchableSelectOption {
   value: string;
   label: string;
   description?: string;
+  /** 匹配数量（在当前检索条件下） */
+  count?: number;
 }
 
 interface SearchableSelectProps {
@@ -25,6 +29,8 @@ interface SearchableSelectProps {
   onChange: (value: string) => void;
   className?: string;
   title?: string;
+  /** 是否隐藏数量为0的选项，默认true */
+  hideEmpty?: boolean;
 }
 
 export default function SearchableSelect({
@@ -35,10 +41,12 @@ export default function SearchableSelect({
   onChange,
   className = '',
   title,
+  hideEmpty = true,
 }: SearchableSelectProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [showEmpty, setShowEmpty] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,16 +56,46 @@ export default function SearchableSelect({
     [options, value]
   );
 
-  // 过滤后的选项
-  const filteredOptions = useMemo(() => {
-    if (!searchTerm.trim()) return options;
-    const term = searchTerm.toLowerCase();
-    return options.filter(opt => 
-      opt.label.toLowerCase().includes(term) ||
-      opt.value.toLowerCase().includes(term) ||
-      opt.description?.toLowerCase().includes(term)
-    );
-  }, [options, searchTerm]);
+  // 处理后的选项列表（过滤和排序）
+  const processedOptions = useMemo(() => {
+    let result = options;
+    
+    // 根据输入过滤
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(opt => 
+        opt.label.toLowerCase().includes(term) ||
+        opt.value.toLowerCase().includes(term) ||
+        opt.description?.toLowerCase().includes(term)
+      );
+    }
+    
+    // 隐藏数量为0的选项（除非用户选择显示或当前选中）
+    if (hideEmpty && !showEmpty) {
+      result = result.filter(opt => 
+        opt.value === '' || // 保留"所有"选项
+        opt.value === value || // 保留当前选中的
+        (opt.count ?? 1) > 0 // 保留有数量的
+      );
+    }
+    
+    // 按数量降序排序（排除空值选项）
+    return result.sort((a, b) => {
+      // "所有"选项始终在最前
+      if (a.value === '') return -1;
+      if (b.value === '') return 1;
+      // 按数量降序
+      return (b.count ?? 0) - (a.count ?? 0);
+    });
+  }, [options, searchTerm, hideEmpty, showEmpty, value]);
+
+  // 统计信息
+  const stats = useMemo(() => {
+    const total = options.length - 1; // 排除空值选项
+    const visible = processedOptions.filter(opt => opt.value !== '').length;
+    const withResults = options.filter(opt => opt.value !== '' && (opt.count ?? 0) > 0).length;
+    return { total, visible, withResults };
+  }, [options, processedOptions]);
 
   // 点击外部关闭
   useEffect(() => {
@@ -65,6 +103,7 @@ export default function SearchableSelect({
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setSearchTerm('');
+        setShowEmpty(false);
       }
     }
 
@@ -94,7 +133,7 @@ export default function SearchableSelect({
       case 'ArrowDown':
         e.preventDefault();
         setHighlightedIndex(prev => 
-          prev < filteredOptions.length - 1 ? prev + 1 : prev
+          prev < processedOptions.length - 1 ? prev + 1 : prev
         );
         break;
       case 'ArrowUp':
@@ -103,29 +142,33 @@ export default function SearchableSelect({
         break;
       case 'Enter':
         e.preventDefault();
-        if (filteredOptions[highlightedIndex]) {
-          onChange(filteredOptions[highlightedIndex].value);
+        if (processedOptions[highlightedIndex]) {
+          onChange(processedOptions[highlightedIndex].value);
           setIsOpen(false);
           setSearchTerm('');
+          setShowEmpty(false);
         }
         break;
       case 'Escape':
         e.preventDefault();
         setIsOpen(false);
         setSearchTerm('');
+        setShowEmpty(false);
         break;
       case 'Tab':
         setIsOpen(false);
         setSearchTerm('');
+        setShowEmpty(false);
         break;
     }
-  }, [isOpen, filteredOptions, highlightedIndex, onChange]);
+  }, [isOpen, processedOptions, highlightedIndex, onChange]);
 
   // 处理选择
   const handleSelect = useCallback((option: SearchableSelectOption) => {
     onChange(option.value);
     setIsOpen(false);
     setSearchTerm('');
+    setShowEmpty(false);
   }, [onChange]);
 
   // 处理清除
@@ -137,11 +180,17 @@ export default function SearchableSelect({
 
   // 高亮项滚动到视野
   useEffect(() => {
-    if (isOpen && filteredOptions.length > 0) {
+    if (isOpen && processedOptions.length > 0) {
       const highlightedEl = containerRef.current?.querySelector(`[data-index="${highlightedIndex}"]`);
       highlightedEl?.scrollIntoView({ block: 'nearest' });
     }
-  }, [highlightedIndex, isOpen, filteredOptions.length]);
+  }, [highlightedIndex, isOpen, processedOptions.length]);
+
+  // 切换显示空选项
+  const toggleShowEmpty = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowEmpty(prev => !prev);
+  }, []);
 
   return (
     <div
@@ -212,25 +261,39 @@ export default function SearchableSelect({
       {/* 下拉列表 */}
       {isOpen && (
         <div className={styles.dropdown} role="listbox">
-          {filteredOptions.length === 0 ? (
+          {processedOptions.length === 0 ? (
             <div className={styles.empty}>无匹配选项</div>
           ) : (
             <>
               {/* 计数提示 */}
               <div className={styles.count}>
-                共 {filteredOptions.length} 个选项
-                {searchTerm && `（过滤自 ${options.length} 个）`}
+                <span className={styles.countInfo}>
+                  共 {stats.withResults} 个有结果
+                  {stats.withResults < stats.total && (
+                    <span className={styles.countHidden}> / {stats.total} 个总计</span>
+                  )}
+                </span>
+                {hideEmpty && stats.withResults < stats.total && (
+                  <button 
+                    className={styles.toggleEmptyBtn}
+                    onClick={toggleShowEmpty}
+                  >
+                    {showEmpty ? '隐藏无结果' : '显示全部'}
+                  </button>
+                )}
               </div>
               
               {/* 选项列表 */}
               <div className={styles.optionsList}>
-                {filteredOptions.map((option, index) => (
+                {processedOptions.map((option, index) => (
                   <div
                     key={option.value}
                     data-index={index}
                     className={`${styles.option} ${
                       option.value === value ? styles.selected : ''
-                    } ${index === highlightedIndex ? styles.highlighted : ''}`}
+                    } ${index === highlightedIndex ? styles.highlighted : ''} ${
+                      (option.count ?? 0) === 0 ? styles.emptyOption : ''
+                    }`}
                     onClick={() => handleSelect(option)}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     role="option"
@@ -239,6 +302,11 @@ export default function SearchableSelect({
                     <span className={styles.optionLabel}>{option.label}</span>
                     {option.description && (
                       <span className={styles.optionDescription}>{option.description}</span>
+                    )}
+                    {typeof option.count === 'number' && (
+                      <span className={`${styles.optionCount} ${option.count === 0 ? styles.zero : ''}`}>
+                        {option.count}
+                      </span>
                     )}
                     {option.value === value && (
                       <svg className={styles.checkmark} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">

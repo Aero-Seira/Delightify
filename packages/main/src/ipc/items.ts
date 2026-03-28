@@ -14,7 +14,7 @@ import type {
   ItemTag,
   TagInfo,
 } from '@delightify/shared';
-import { createProjectDbClient } from '../services/database';
+import { createProjectDbClient, closeProjectDbClient } from '../services/database';
 import { appPaths } from '../services/paths';
 
 export function registerItemsHandlers(): void {
@@ -24,10 +24,10 @@ export function registerItemsHandlers(): void {
     projectPath: string,
     params: ItemQueryParams
   ): Promise<IpcResponse<ItemQueryResult>> => {
+    const dbPath = appPaths.projectDb(projectPath);
     try {
       const { search, searchField = 'all', modid, tagId, page = 1, pageSize = 50 } = params;
       
-      const dbPath = appPaths.projectDb(projectPath);
       const db = createProjectDbClient(dbPath);
       
       // 构建查询条件
@@ -125,13 +125,14 @@ export function registerItemsHandlers(): void {
         displayName: row.display_name || undefined,
       }));
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       return {
         success: true,
         data: { items, total, page, pageSize },
       };
     } catch (error) {
+      await closeProjectDbClient(dbPath);
       const errorMessage = error instanceof Error ? error.message : '查询失败';
       return { success: false, error: errorMessage };
     }
@@ -143,8 +144,8 @@ export function registerItemsHandlers(): void {
     projectPath: string,
     modid: string
   ): Promise<IpcResponse<Item[]>> => {
+    const dbPath = appPaths.projectDb(projectPath);
     try {
-      const dbPath = appPaths.projectDb(projectPath);
       const db = createProjectDbClient(dbPath);
       
       const result = await db.execute({
@@ -161,7 +162,7 @@ export function registerItemsHandlers(): void {
         args: [modid],
       });
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const items: Item[] = result.rows.map((row: any) => ({
         itemId: row.item_id,
@@ -171,6 +172,7 @@ export function registerItemsHandlers(): void {
       
       return { success: true, data: items };
     } catch (error) {
+      await closeProjectDbClient(dbPath);
       const errorMessage = error instanceof Error ? error.message : '获取失败';
       return { success: false, error: errorMessage };
     }
@@ -182,8 +184,8 @@ export function registerItemsHandlers(): void {
     projectPath: string,
     itemId: string
   ): Promise<IpcResponse<Item & { tags: string[] } | null>> => {
+    const dbPath = appPaths.projectDb(projectPath);
     try {
-      const dbPath = appPaths.projectDb(projectPath);
       const db = createProjectDbClient(dbPath);
       
       const [itemResult, tagsResult] = await Promise.all([
@@ -205,7 +207,7 @@ export function registerItemsHandlers(): void {
         }),
       ]);
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const row = itemResult.rows[0] as any;
       if (!row) {
@@ -235,8 +237,10 @@ export function registerItemsHandlers(): void {
     projectPath: string,
     itemId: string
   ): Promise<IpcResponse<{ base64: string; mimeType: string } | null>> => {
+    const dbPath = appPaths.projectDb(projectPath);
+
     try {
-      const dbPath = appPaths.projectDb(projectPath);
+
       const db = createProjectDbClient(dbPath);
       
       // 查询 texture 类型的资源
@@ -247,7 +251,7 @@ export function registerItemsHandlers(): void {
         args: [itemId],
       });
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const row = result.rows[0] as any;
       if (!row || !row.content) {
@@ -287,8 +291,10 @@ export function registerItemsHandlers(): void {
     _event,
     projectPath: string
   ): Promise<IpcResponse<TagInfo[]>> => {
+    const dbPath = appPaths.projectDb(projectPath);
+
     try {
-      const dbPath = appPaths.projectDb(projectPath);
+
       const db = createProjectDbClient(dbPath);
       
       const result = await db.execute(`
@@ -298,7 +304,7 @@ export function registerItemsHandlers(): void {
         ORDER BY count DESC
       `);
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const tags: TagInfo[] = result.rows.map((row: any) => ({
         tagId: row.tag_id,
@@ -317,13 +323,15 @@ export function registerItemsHandlers(): void {
     _event,
     projectPath: string
   ): Promise<IpcResponse<{ modid: string; version?: string; name?: string }[]>> => {
+    const dbPath = appPaths.projectDb(projectPath);
+
     try {
-      const dbPath = appPaths.projectDb(projectPath);
+
       const db = createProjectDbClient(dbPath);
       
       const result = await db.execute('SELECT * FROM mods ORDER BY modid');
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const mods = result.rows.map((row: any) => ({
         modid: row.modid,

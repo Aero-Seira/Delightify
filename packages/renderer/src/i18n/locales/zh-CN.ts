@@ -132,7 +132,7 @@ const zhCN: TranslationData = {
     importSuccess: '导入成功！',
     importFailed: '导入失败',
     noDataFile: '未检测到数据文件',
-    dataFileHint: '请确保 delightify-export/export.sqlite 文件存在于整合包目录中',
+    dataFileHint: '请确保 delightify-exporter/export.sqlite 文件存在于整合包目录中',
     validationFailed: '数据文件验证失败',
     stats: {
       mods: '模组',

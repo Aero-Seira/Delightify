@@ -113,7 +113,7 @@ export interface DetectedDataFile {
 
 // 数据文件预期路径（相对于整合包根目录）
 export const DATA_FILE_PATHS = [
-  'delightify-export/export.sqlite',
-  '.delightify-export/export.sqlite',
-  'config/delightify-export/export.sqlite',
+  'delightify-exporter/export.sqlite',
+  '.delightify-exporter/export.sqlite',
+  'config/delightify-exporter/export.sqlite',
 ];

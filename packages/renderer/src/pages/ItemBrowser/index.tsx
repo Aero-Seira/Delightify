@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Item, SearchField } from '@delightify/shared';
 import type { ItemCategory } from '../../components/CategoryLegend';
-import ItemCard, { ItemListRow, ItemDetailCard } from '../../components/ItemCard';
+import ItemCard, { ItemListRow, ItemCompactRow, ItemDetailCard } from '../../components/ItemCard';
 import CategoryLegend from '../../components/CategoryLegend';
 import SearchableSelect from '../../components/SearchableSelect';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -25,7 +25,7 @@ const SEARCH_FIELD_OPTIONS: { value: SearchField; label: string; icon: string }[
 ];
 
 const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
-const VIEW_MODES = ['grid', 'list', 'detail'] as const;
+const VIEW_MODES = ['grid', 'compact', 'list', 'detail'] as const;
 type ViewMode = typeof VIEW_MODES[number];
 
 export default function ItemBrowser(): React.ReactElement {
@@ -55,6 +55,11 @@ export default function ItemBrowser(): React.ReactElement {
   const [itemSize, setItemSize] = useState(64);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
+  
+  // 多选状态
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showSelectedPanel, setShowSelectedPanel] = useState(false);
   
   // 可用选项
   const [mods, setMods] = useState<Array<{ modid: string; name?: string }>>([]);
@@ -116,6 +121,103 @@ export default function ItemBrowser(): React.ReactElement {
     }
   }, [currentProject]);
 
+  // 存储计算出的数量
+  const [modCounts, setModCounts] = useState<Map<string, number>>(new Map());
+  const [tagCounts, setTagCounts] = useState<Map<string, number>>(new Map());
+  
+  // 使用 ref 存储待处理的更新，用于防抖
+  const updateCountsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 计算模组在当前搜索条件下的匹配数量（排除模组筛选本身）
+  const updateModCounts = useCallback(async () => {
+    if (!currentProject || mods.length === 0) return;
+    
+    const counts = new Map<string, number>();
+    
+    try {
+      const api = electronAPI();
+      
+      // 分批处理，每批10个，减少并发压力
+      const batchSize = 10;
+      for (let i = 0; i < mods.length; i += batchSize) {
+        const batch = mods.slice(i, i + batchSize);
+        await Promise.all(batch.map(async (mod) => {
+          const response = await api.itemsQuery(currentProject.path, {
+            page: 1,
+            pageSize: 1,
+            search: filters.search || undefined,
+            searchField: filters.searchField,
+            modid: mod.modid,
+            tagId: filters.tag || undefined,
+          });
+          
+          if (response.success && response.data) {
+            counts.set(mod.modid, response.data.total);
+          }
+        }));
+      }
+      
+      setModCounts(counts);
+    } catch {
+      // 静默失败
+    }
+  }, [currentProject, filters.search, filters.searchField, filters.tag, mods]);
+
+  // 计算标签在当前搜索条件下的匹配数量（排除标签筛选本身）
+  const updateTagCounts = useCallback(async () => {
+    if (!currentProject || tags.length === 0) return;
+    
+    const counts = new Map<string, number>();
+    
+    try {
+      const api = electronAPI();
+      
+      // 分批处理，每批10个
+      const batchSize = 10;
+      for (let i = 0; i < tags.length; i += batchSize) {
+        const batch = tags.slice(i, i + batchSize);
+        await Promise.all(batch.map(async (tag) => {
+          const response = await api.itemsQuery(currentProject.path, {
+            page: 1,
+            pageSize: 1,
+            search: filters.search || undefined,
+            searchField: filters.searchField,
+            modid: filters.modId || undefined,
+            tagId: tag.tagId,
+          });
+          
+          if (response.success && response.data) {
+            counts.set(tag.tagId, response.data.total);
+          }
+        }));
+      }
+      
+      setTagCounts(counts);
+    } catch {
+      // 静默失败
+    }
+  }, [currentProject, filters.search, filters.searchField, filters.modId, tags]);
+
+  // 当筛选条件变化时重新计算数量（防抖）
+  useEffect(() => {
+    // 清除之前的定时器
+    if (updateCountsTimeoutRef.current) {
+      clearTimeout(updateCountsTimeoutRef.current);
+    }
+    
+    // 延迟500ms后更新，避免频繁请求
+    updateCountsTimeoutRef.current = setTimeout(() => {
+      updateModCounts();
+      updateTagCounts();
+    }, 500);
+    
+    return () => {
+      if (updateCountsTimeoutRef.current) {
+        clearTimeout(updateCountsTimeoutRef.current);
+      }
+    };
+  }, [updateModCounts, updateTagCounts]);
+
   // 初始化加载
   useEffect(() => {
     loadItems();
@@ -164,11 +266,83 @@ export default function ItemBrowser(): React.ReactElement {
   // 获取当前搜索字段的显示文本
   const currentSearchFieldLabel = SEARCH_FIELD_OPTIONS.find(opt => opt.value === filters.searchField)?.label || '全部';
 
+  // ========== 多选功能 ==========
+  
+  // 切换多选模式
+  const toggleMultiSelectMode = () => {
+    setIsMultiSelectMode(prev => !prev);
+    if (isMultiSelectMode) {
+      // 退出多选模式时清空选择
+      setSelectedItems(new Set());
+    }
+  };
+  
+  // 切换单个物品的选中状态
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+  
+  // 全选当前页
+  const selectAllOnPage = () => {
+    const allIds = items.map(item => item.itemId);
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      allIds.forEach(id => newSet.add(id));
+      return newSet;
+    });
+  };
+  
+  // 清空选择
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+  };
+  
+  // 生成JSON列表
+  const generateJSON = () => {
+    const list = Array.from(selectedItems);
+    const json = JSON.stringify(list, null, 2);
+    navigator.clipboard.writeText(json).then(() => {
+      alert(`已复制 ${list.length} 个物品ID到剪贴板`);
+    }).catch(() => {
+      // 降级方案
+      const textarea = document.createElement('textarea');
+      textarea.value = json;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert(`已复制 ${list.length} 个物品ID到剪贴板`);
+    });
+  };
+  
+  // 复制单个ID
+  const copyItemId = (itemId: string) => {
+    navigator.clipboard.writeText(itemId).then(() => {
+      // 可以显示一个轻量提示
+    }).catch(() => {
+      const textarea = document.createElement('textarea');
+      textarea.value = itemId;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    });
+  };
+
   // 渲染物品卡片
   const renderItem = (item: Item) => {
     // 使用 itemId 作为唯一标识
     const itemKey = item.itemId || `item-${Math.random()}`;
-    const isSelected = selectedItem?.itemId === item.itemId;
+    const isSingleSelected = selectedItem?.itemId === item.itemId;
+    const isMultiSelected = selectedItems.has(item.itemId);
     
     // 确保 item 有必要的字段
     if (!item.itemId) {
@@ -176,19 +350,47 @@ export default function ItemBrowser(): React.ReactElement {
       return null;
     }
     
+    // 处理点击 - 多选模式或单选模式
+    const handleClick = () => {
+      if (isMultiSelectMode) {
+        toggleItemSelection(item.itemId);
+      } else {
+        setSelectedItem(item);
+      }
+    };
+    
+    // 处理双击图标 - 复制ID
+    const handleDoubleClick = () => {
+      copyItemId(item.itemId);
+    };
+    
     switch (viewMode) {
       case 'list':
         return (
           <ItemListRow
             key={itemKey}
             item={item}
-            size={32}
-            selected={isSelected}
-            onClick={() => setSelectedItem(item)}
+            selected={isSingleSelected}
+            isMultiSelected={isMultiSelected}
+            isMultiSelectMode={isMultiSelectMode}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
+          />
+        );
+      case 'compact':
+        return (
+          <ItemCompactRow
+            key={itemKey}
+            item={item}
+            selected={isSingleSelected}
+            isMultiSelected={isMultiSelected}
+            isMultiSelectMode={isMultiSelectMode}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
           />
         );
       case 'detail':
-        if (isSelected) {
+        if (isSingleSelected) {
           return (
             <div key={itemKey} className={styles.detailItemWrapper}>
               <ItemDetailCard item={item} />
@@ -199,9 +401,11 @@ export default function ItemBrowser(): React.ReactElement {
           <ItemListRow
             key={itemKey}
             item={item}
-            size={32}
-            selected={isSelected}
-            onClick={() => setSelectedItem(item)}
+            selected={isSingleSelected}
+            isMultiSelected={isMultiSelected}
+            isMultiSelectMode={isMultiSelectMode}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
           />
         );
       default: // grid
@@ -210,11 +414,11 @@ export default function ItemBrowser(): React.ReactElement {
             key={itemKey}
             item={item}
             size={itemSize}
-            selected={isSelected}
-            onClick={() => setSelectedItem(item)}
-            onDoubleClick={() => {
-              console.log('Open item details:', item);
-            }}
+            selected={isSingleSelected}
+            isMultiSelected={isMultiSelected}
+            isMultiSelectMode={isMultiSelectMode}
+            onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
           />
         );
     }
@@ -299,34 +503,38 @@ export default function ItemBrowser(): React.ReactElement {
           <SearchableSelect
             value={filters.modId}
             options={[
-              { value: '', label: '所有模组' },
+              { value: '', label: '所有模组', count: totalCount },
               ...mods.map(mod => ({
                 value: mod.modid,
                 label: mod.name || mod.modid,
                 description: mod.name ? mod.modid : undefined,
+                count: modCounts.get(mod.modid) ?? 0,
               })),
             ]}
             placeholder="📦 所有模组"
             onChange={(value) => updateFilter('modId', value)}
             className={styles.filterSelect}
             title="筛选模组"
+            hideEmpty={true}
           />
 
           {/* 标签筛选 - 可搜索 */}
           <SearchableSelect
             value={filters.tag}
             options={[
-              { value: '', label: '所有标签' },
+              { value: '', label: '所有标签', count: totalCount },
               ...tags.map(tag => ({
                 value: tag.tagId,
                 label: tag.tagId,
                 description: `${tag.itemCount} 个物品`,
+                count: tagCounts.get(tag.tagId) ?? 0,
               })),
             ]}
             placeholder="🏷️ 所有标签"
             onChange={(value) => updateFilter('tag', value)}
             className={styles.filterSelect}
             title="筛选标签"
+            hideEmpty={true}
           />
 
           {/* 清除过滤按钮 */}
@@ -353,11 +561,21 @@ export default function ItemBrowser(): React.ReactElement {
                 key={mode}
                 className={`${styles.viewModeBtn} ${viewMode === mode ? styles.active : ''}`}
                 onClick={() => setViewMode(mode)}
-                title={mode === 'grid' ? '网格视图' : mode === 'list' ? '列表视图' : '详情视图'}
+                title={
+                  mode === 'grid' ? '网格视图' : 
+                  mode === 'compact' ? '紧凑视图' : 
+                  mode === 'list' ? '列表视图' : 
+                  '详情视图'
+                }
               >
                 {mode === 'grid' && (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z"/>
+                  </svg>
+                )}
+                {mode === 'compact' && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 5h6v4H3V5zm0 6h6v4H3v-4zm0 6h6v4H3v-4zm9-12h6v4h-6V5zm0 6h6v4h-6v-4zm0 6h6v4h-6v-4z"/>
                   </svg>
                 )}
                 {mode === 'list' && (
@@ -394,8 +612,59 @@ export default function ItemBrowser(): React.ReactElement {
             selectedCategory={filters.category as ItemCategory || null}
             onCategoryClick={(cat) => updateFilter('category', cat || '')}
           />
+          
+          {/* 多选模式切换 */}
+          <button
+            className={`${styles.multiSelectBtn} ${isMultiSelectMode ? styles.active : ''}`}
+            onClick={toggleMultiSelectMode}
+            title={isMultiSelectMode ? '退出多选' : '多选模式'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="6" height="6" rx="1" />
+              <rect x="15" y="3" width="6" height="6" rx="1" />
+              <rect x="3" y="15" width="6" height="6" rx="1" />
+              <rect x="15" y="15" width="6" height="6" rx="1" />
+            </svg>
+            {isMultiSelectMode && <span>{selectedItems.size}</span>}
+          </button>
         </div>
       </div>
+      
+      {/* 多选工具栏 */}
+      {isMultiSelectMode && (
+        <div className={styles.multiSelectToolbar}>
+          <div className={styles.multiSelectLeft}>
+            <span className={styles.selectedCount}>
+              已选择 <strong>{selectedItems.size}</strong> 个物品
+            </span>
+            <button className={styles.actionBtn} onClick={selectAllOnPage}>
+              全选本页
+            </button>
+            <button className={styles.actionBtn} onClick={clearSelection}>
+              清空
+            </button>
+          </div>
+          <div className={styles.multiSelectRight}>
+            <button 
+              className={`${styles.actionBtn} ${styles.primary}`} 
+              onClick={generateJSON}
+              disabled={selectedItems.size === 0}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              复制ID列表 (JSON)
+            </button>
+            <button 
+              className={styles.actionBtn}
+              onClick={() => setShowSelectedPanel(!showSelectedPanel)}
+            >
+              {showSelectedPanel ? '隐藏' : '显示'}已选列表
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 结果统计 */}
       <div className={styles.stats}>
@@ -538,6 +807,38 @@ export default function ItemBrowser(): React.ReactElement {
               <option key={size} value={size}>{size} / 页</option>
             ))}
           </select>
+        </div>
+      )}
+      
+      {/* 已选列表面板 */}
+      {isMultiSelectMode && showSelectedPanel && (
+        <div className={styles.selectedPanel}>
+          <div className={styles.selectedPanelHeader}>
+            <h4>已选物品 ({selectedItems.size})</h4>
+            <button 
+              className={styles.closePanelBtn}
+              onClick={() => setShowSelectedPanel(false)}
+            >
+              ×
+            </button>
+          </div>
+          <div className={styles.selectedList}>
+            {selectedItems.size === 0 ? (
+              <p className={styles.emptyText}>暂无选中物品</p>
+            ) : (
+              Array.from(selectedItems).map(itemId => (
+                <div key={itemId} className={styles.selectedItem}>
+                  <code>{itemId}</code>
+                  <button 
+                    className={styles.removeItemBtn}
+                    onClick={() => toggleItemSelection(itemId)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

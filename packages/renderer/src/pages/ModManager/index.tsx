@@ -304,7 +304,7 @@ export default function DataImportPage(): React.ReactElement {
               <p>
                 点击下方按钮检测整合包目录中的数据文件。
                 <br />
-                预期路径：<code>delightify-export/export.sqlite</code>
+                预期路径：<code>delightify-exporter/export.sqlite</code>
               </p>
               <button className={styles.primaryButton} onClick={handleDetect}>
                 <RefreshIcon />
