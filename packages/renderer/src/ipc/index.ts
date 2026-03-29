@@ -14,6 +14,7 @@ import type {
   Recipe,
   RecipeQueryParams,
   RecipeTypeInfo,
+  RecipeTypeMetadata,
   TagInfo,
   ModDataImportResult,
   ModDataImportProgress,
@@ -54,6 +55,12 @@ export interface ElectronAPI {
   recipesQuery: (projectPath: string, params: RecipeQueryParams) => Promise<{ success: boolean; data?: { recipes: Recipe[]; total: number }; error?: string }>;
   recipesGetTypes: (projectPath: string) => Promise<{ success: boolean; data?: RecipeTypeInfo[]; error?: string }>;
   recipesGetDetail: (projectPath: string, recipeId: string) => Promise<{ success: boolean; data?: Recipe | null; error?: string }>;
+
+  // ========== 配方类型元数据 ==========
+  recipeTypesGetAll: () => Promise<{ success: boolean; data?: RecipeTypeMetadata[]; error?: string }>;
+  recipeTypesGet: (recipeTypeId: string) => Promise<{ success: boolean; data?: RecipeTypeMetadata | null; error?: string }>;
+  recipeTypesGetByMod: (modId: string) => Promise<{ success: boolean; data?: RecipeTypeMetadata[]; error?: string }>;
+  recipeTypesClearCache: () => Promise<{ success: boolean; error?: string }>;
 
   // ========== 通用工具 ==========
   openExternal: (url: string) => Promise<void>;

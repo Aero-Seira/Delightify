@@ -12,7 +12,7 @@ import type {
   RecipeQueryParams,
   RecipeTypeInfo,
 } from '@delightify/shared';
-import { createProjectDbClient } from '../services/database';
+import { createProjectDbClient, closeProjectDbClient } from '../services/database';
 import { appPaths } from '../services/paths';
 
 export function registerRecipesHandlers(): void {
@@ -22,10 +22,10 @@ export function registerRecipesHandlers(): void {
     projectPath: string,
     params: RecipeQueryParams
   ): Promise<IpcResponse<{ recipes: Recipe[]; total: number }>> => {
+    const dbPath = appPaths.projectDb(projectPath);
     try {
       const { search, modid, typeId, page = 1, pageSize = 50 } = params;
       
-      const dbPath = appPaths.projectDb(projectPath);
       const db = createProjectDbClient(dbPath);
       
       // 构建查询
@@ -71,7 +71,7 @@ export function registerRecipesHandlers(): void {
         unparsed: Boolean(row.unparsed),
       }));
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       return { success: true, data: { recipes, total } };
     } catch (error) {
@@ -96,7 +96,7 @@ export function registerRecipesHandlers(): void {
         ORDER BY count DESC
       `);
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const types: RecipeTypeInfo[] = result.rows.map((row: any) => ({
         typeId: row.type_id,
@@ -126,7 +126,7 @@ export function registerRecipesHandlers(): void {
         args: [recipeId],
       });
       
-      await db.close();
+      await closeProjectDbClient(dbPath);
       
       const row = result.rows[0] as any;
       if (!row) {
