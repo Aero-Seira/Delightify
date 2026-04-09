@@ -18,6 +18,7 @@ parts/
 sdist/
 var/
 wheels/
+reference_sql/
 *.egg-info/
 .installed.cfg
 *.egg
