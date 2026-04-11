@@ -13,7 +13,7 @@ import type {
   RecipeQueryParams,
   RecipeTypeInfo,
 } from '@delightify/shared';
-import { createProjectDbClient } from '../services/database';
+import { createProjectDbClient, closeProjectDbClient } from '../services/database';
 import { appPaths } from '../services/paths';
 
 export function registerRecipesHandlers(): void {
@@ -23,10 +23,10 @@ export function registerRecipesHandlers(): void {
     projectPath: string,
     params: RecipeQueryParams
   ): Promise<IpcResponse<{ recipes: Recipe[]; total: number }>> => {
+    const dbPath = appPaths.projectDb(projectPath);
     try {
       const { search, modid, typeId, page = 1, pageSize = 50 } = params;
       
-      const dbPath = appPaths.projectDb(projectPath);
       const db = createProjectDbClient(dbPath);
       
       // 构建查询
@@ -97,6 +97,7 @@ export function registerRecipesHandlers(): void {
         ORDER BY count DESC
       `);
       
+
       const types: RecipeTypeInfo[] = result.rows.map((row: any) => ({
         typeId: row.type_id,
         displayName: row.type_id.split(':').pop() || row.type_id, // 默认显示名称
@@ -125,6 +126,7 @@ export function registerRecipesHandlers(): void {
         args: [recipeId],
       });
       
+
       const row = result.rows[0] as any;
       if (!row) {
         return { success: true, data: null };

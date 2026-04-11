@@ -90,6 +90,12 @@ export const browserElectronAPI = {
   recipesGetTypes: async () => ({ success: true, data: [] }),
   recipesGetDetail: async () => ({ success: true, data: null }),
 
+  // ========== 配方类型元数据 ==========
+  recipeTypesGetAll: async () => ({ success: true, data: [] }),
+  recipeTypesGet: async () => ({ success: true, data: null }),
+  recipeTypesGetByMod: async () => ({ success: true, data: [] }),
+  recipeTypesClearCache: async () => ({ success: true }),
+
   // ========== 通用工具 ==========
   openExternal: async (url: string) => {
     window.open(url, '_blank');

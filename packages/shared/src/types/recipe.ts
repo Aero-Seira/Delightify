@@ -1,8 +1,104 @@
 /**
- * Recipe types - v2.1
+ * Recipe types - v2.2
  * 
  * 根据 reference_sql/export.sqlite 样例调整
+ * 新增配方类型元数据系统
  */
+
+// ============================================================================
+// 配方类型元数据（来自 config/recipe_types/*.json）
+// ============================================================================
+
+/** 字段定义 */
+export interface FieldSpec {
+  /** 是否必填 */
+  required: boolean;
+  /** 字段类型 */
+  type: 'string' | 'integer' | 'float' | 'boolean' | 'array' | 'object' | 'ingredient' | 'item_stack' | 'item_tag';
+  /** 默认值 */
+  default?: unknown;
+  /** 描述 */
+  description?: string;
+  /** 常量值（如果指定，该字段只能是此值） */
+  constant?: string;
+  /** 数组最小长度 */
+  minItems?: number;
+  /** 数组最大长度 */
+  maxItems?: number;
+  /** 数值范围 [min, max] */
+  range?: [number, number];
+  /** 单位 */
+  unit?: string;
+}
+
+/** 槽位定义 */
+export interface SlotSpec {
+  /** 槽位ID */
+  slotId: string;
+  /** 槽位类型 */
+  type: 'input' | 'output' | 'catalyst' | 'fluid';
+  /** 显示名称 */
+  displayName?: string;
+  /** 是否必需 */
+  required: boolean;
+  /** 是否支持标签 */
+  acceptsTag?: boolean;
+  /** 槽位位置（在网格中的行列） */
+  position?: { row: number; col: number };
+}
+
+/** 适用场景 */
+export interface SuitableFor {
+  /** 适用的物品分类 */
+  itemCategories?: string[];
+  /** 关键词 */
+  keywords?: string[];
+  /** 输入数量范围 */
+  inputCount?: { min: number; max: number };
+  /** 输出数量范围 */
+  outputCount?: { min: number; max: number };
+  /** 典型模式描述 */
+  typicalPatterns?: string[];
+}
+
+/** 配方类型元数据 */
+export interface RecipeTypeMetadata {
+  /** 配方类型ID (如 "minecraft:crafting_shaped") */
+  recipeTypeId: string;
+  /** 显示名称 */
+  displayName: string;
+  /** 描述 */
+  description?: string;
+  /** 图标物品ID */
+  icon?: string;
+  /** 配方模板 */
+  template: Record<string, unknown>;
+  /** 字段定义映射 */
+  fieldSpecs: Record<string, FieldSpec>;
+  /** 输入槽位定义 */
+  inputSlots: SlotSpec[];
+  /** 输出槽位定义 */
+  outputSlots: SlotSpec[];
+  /** 适用场景 */
+  suitableFor?: SuitableFor;
+  /** 所属模组ID */
+  modId: string;
+}
+
+/** 配方类型配置文件结构 */
+export interface RecipeTypeConfig {
+  modInfo: {
+    modId: string;
+    modName: string;
+    version?: string;
+    description?: string;
+  };
+  recipeTypes: RecipeTypeMetadata[];
+}
+
+// ============================================================================
+// 配方数据（来自数据库）
+// ============================================================================
 
 /** 配方信息（与附属Mod导出结构一致） */
 export interface Recipe {

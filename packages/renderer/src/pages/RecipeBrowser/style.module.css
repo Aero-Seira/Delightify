@@ -494,6 +494,7 @@
 }
 
 /* ========== 暗色主题适配 ========== */
+
 @media (prefers-color-scheme: dark) {
   .container {
     background: #1a1a1a;
@@ -666,6 +667,7 @@
 }
 
 /* ========== 移动端适配 ========== */
+
 @media (max-width: 1024px) {
   .toolbar {
     flex-direction: column;
