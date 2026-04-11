@@ -1,7 +1,8 @@
 /**
- * Items IPC Handlers - v2.1
+ * Items IPC Handlers - v2.2
  * 
- * 根据 reference_sql/export.sqlite 样例调整
+ * 优化数据库连接管理，不再每次查询后关闭连接
+ * 依赖 createProjectDbClient 的连接缓存机制
  */
 
 import { ipcMain } from 'electron';
@@ -11,10 +12,9 @@ import type {
   ItemQueryParams, 
   ItemQueryResult,
   Item,
-  ItemTag,
   TagInfo,
 } from '@delightify/shared';
-import { createProjectDbClient, closeProjectDbClient } from '../services/database';
+import { createProjectDbClient } from '../services/database';
 import { appPaths } from '../services/paths';
 
 export function registerItemsHandlers(): void {
@@ -125,14 +125,14 @@ export function registerItemsHandlers(): void {
         displayName: row.display_name || undefined,
       }));
       
-      await closeProjectDbClient(dbPath);
+      // 注意：不再关闭连接，依赖连接缓存机制
+      // createProjectDbClient 会自动管理连接生命周期
       
       return {
         success: true,
         data: { items, total, page, pageSize },
       };
     } catch (error) {
-      await closeProjectDbClient(dbPath);
       const errorMessage = error instanceof Error ? error.message : '查询失败';
       return { success: false, error: errorMessage };
     }
@@ -162,8 +162,6 @@ export function registerItemsHandlers(): void {
         args: [modid],
       });
       
-      await closeProjectDbClient(dbPath);
-      
       const items: Item[] = result.rows.map((row: any) => ({
         itemId: row.item_id,
         modid: row.modid,
@@ -172,7 +170,6 @@ export function registerItemsHandlers(): void {
       
       return { success: true, data: items };
     } catch (error) {
-      await closeProjectDbClient(dbPath);
       const errorMessage = error instanceof Error ? error.message : '获取失败';
       return { success: false, error: errorMessage };
     }
@@ -207,8 +204,6 @@ export function registerItemsHandlers(): void {
         }),
       ]);
       
-      await closeProjectDbClient(dbPath);
-      
       const row = itemResult.rows[0] as any;
       if (!row) {
         return { success: true, data: null };
@@ -240,18 +235,18 @@ export function registerItemsHandlers(): void {
     const dbPath = appPaths.projectDb(projectPath);
 
     try {
-
       const db = createProjectDbClient(dbPath);
+      
+      // 处理 tag: 前缀的物品ID
+      const actualItemId = itemId.startsWith('tag:') ? itemId.slice(4) : itemId;
       
       // 查询 texture 类型的资源
       const result = await db.execute({
         sql: `SELECT content FROM item_resources 
               WHERE item_id = ? AND resource_type = 'texture'
               LIMIT 1`,
-        args: [itemId],
+        args: [actualItemId],
       });
-      
-      await closeProjectDbClient(dbPath);
       
       const row = result.rows[0] as any;
       if (!row || !row.content) {
@@ -294,7 +289,6 @@ export function registerItemsHandlers(): void {
     const dbPath = appPaths.projectDb(projectPath);
 
     try {
-
       const db = createProjectDbClient(dbPath);
       
       const result = await db.execute(`
@@ -303,8 +297,6 @@ export function registerItemsHandlers(): void {
         GROUP BY tag_id 
         ORDER BY count DESC
       `);
-      
-      await closeProjectDbClient(dbPath);
       
       const tags: TagInfo[] = result.rows.map((row: any) => ({
         tagId: row.tag_id,
@@ -326,12 +318,9 @@ export function registerItemsHandlers(): void {
     const dbPath = appPaths.projectDb(projectPath);
 
     try {
-
       const db = createProjectDbClient(dbPath);
       
       const result = await db.execute('SELECT * FROM mods ORDER BY modid');
-      
-      await closeProjectDbClient(dbPath);
       
       const mods = result.rows.map((row: any) => ({
         modid: row.modid,

@@ -138,8 +138,6 @@ export function registerModDataHandlers(): void {
         'SELECT * FROM data_imports ORDER BY imported_at DESC'
       );
 
-      await client.close();
-
       const history: DataImportHistory[] = result.rows.map((row: any) => ({
         importId: row.import_id,
         sourceFilePath: row.source_file_path,
@@ -170,8 +168,6 @@ export function registerModDataHandlers(): void {
       const client = createProjectDbClient(dbPath);
 
       const result = await client.execute('SELECT * FROM manifest');
-      await client.close();
-
       const manifest: ManifestEntry[] = result.rows.map((row: any) => ({
         key: row.key,
         value: row.value,

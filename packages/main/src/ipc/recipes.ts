@@ -1,7 +1,8 @@
 /**
- * Recipes IPC Handlers - v2.1
+ * Recipes IPC Handlers - v2.2
  * 
- * 根据 reference_sql/export.sqlite 样例调整
+ * 优化数据库连接管理，不再每次查询后关闭连接
+ * 依赖 createProjectDbClient 的连接缓存机制
  */
 
 import { ipcMain } from 'electron';
@@ -71,7 +72,7 @@ export function registerRecipesHandlers(): void {
         unparsed: Boolean(row.unparsed),
       }));
       
-      await db.close();
+      // 注意：不再关闭连接，依赖连接缓存机制
       
       return { success: true, data: { recipes, total } };
     } catch (error) {
@@ -95,8 +96,6 @@ export function registerRecipesHandlers(): void {
         GROUP BY type_id 
         ORDER BY count DESC
       `);
-      
-      await db.close();
       
       const types: RecipeTypeInfo[] = result.rows.map((row: any) => ({
         typeId: row.type_id,
@@ -125,8 +124,6 @@ export function registerRecipesHandlers(): void {
         sql: 'SELECT * FROM recipes WHERE recipe_id = ?',
         args: [recipeId],
       });
-      
-      await db.close();
       
       const row = result.rows[0] as any;
       if (!row) {

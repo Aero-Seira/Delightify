@@ -24,13 +24,68 @@ function generateMockItems(count: number): Item[] {
 }
 
 function generateMockRecipes(count: number): Recipe[] {
-  return Array.from({ length: count }, (_, i) => ({
-    recipeId: `minecraft:recipe_${i}`,
-    typeId: i % 2 === 0 ? 'minecraft:crafting_shaped' : 'minecraft:smelting',
-    modid: 'minecraft',
-    hash: `hash_${i}`,
-    unparsed: false,
-  }));
+  const types = [
+    'minecraft:crafting_shaped',
+    'minecraft:crafting_shapeless', 
+    'minecraft:smelting',
+    'minecraft:blasting',
+    'minecraft:smoking',
+    'farmersdelight:cooking',
+  ];
+  
+  const items = [
+    'minecraft:oak_planks', 'minecraft:stick', 'minecraft:diamond',
+    'minecraft:iron_ingot', 'minecraft:gold_ingot', 'minecraft:coal',
+    'minecraft:cobblestone', 'minecraft:log', 'minecraft:crafting_table',
+    'minecraft:furnace', 'minecraft:chest', 'minecraft:iron_pickaxe',
+    'minecraft:diamond_sword', 'minecraft:bowl', 'minecraft:bread',
+    'minecraft:cooked_beef', 'minecraft:torch', 'minecraft:glass',
+    'minecraft:stone_bricks', 'minecraft:wooden_sword',
+  ];
+  
+  return Array.from({ length: count }, (_, i) => {
+    const typeId = types[i % types.length];
+    const resultItem = items[i % items.length];
+    
+    // 生成不同的配方 JSON
+    let rawJson: string | undefined;
+    if (typeId.includes('crafting')) {
+      rawJson = JSON.stringify({
+        type: typeId,
+        pattern: ['XX', 'XX'],
+        key: {
+          X: { item: items[(i + 1) % items.length] }
+        },
+        result: { item: resultItem, count: 1 }
+      });
+    } else if (typeId.includes('smelt') || typeId.includes('blast') || typeId.includes('smoke')) {
+      rawJson = JSON.stringify({
+        type: typeId,
+        ingredient: { item: items[(i + 2) % items.length] },
+        result: resultItem,
+        cookingtime: 200,
+        experience: 0.35
+      });
+    } else {
+      rawJson = JSON.stringify({
+        type: typeId,
+        ingredients: [
+          { item: items[(i + 1) % items.length] },
+          { item: items[(i + 3) % items.length] }
+        ],
+        result: { item: resultItem }
+      });
+    }
+    
+    return {
+      recipeId: `minecraft:recipe_${i}`,
+      typeId,
+      modid: typeId.includes('farmersdelight') ? 'farmersdelight' : 'minecraft',
+      hash: `hash_${i}`,
+      rawJson,
+      unparsed: false,
+    };
+  });
 }
 
 /**

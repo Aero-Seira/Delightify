@@ -1,9 +1,9 @@
 /**
- * 改进的物品图标组件
+ * 改进的物品图标组件 - v2.1
  * 
  * 特性：
  * 1. 使用 useTexture hook 进行智能纹理加载
- * 2. 更好的 fallback 显示（紫黑格子 + 字母）
+ * 2. 材质缺失时显示物品ID文字（而非紫黑格子）
  * 3. 平滑的加载动画
  * 4. 支持像素完美渲染
  */
@@ -23,6 +23,8 @@ interface ItemIconProps {
   className?: string;
   /** 是否启用缓存 */
   enableCache?: boolean;
+  /** 是否显示调试信息（物品ID） */
+  showDebug?: boolean;
 }
 
 /**
@@ -44,34 +46,28 @@ function useStableColor(itemId: string): string {
 }
 
 /**
- * 获取首字母
+ * 获取显示文本（简短版本）
  */
-function useInitial(itemId: string, displayName?: string): string {
+function useDisplayText(itemId: string, displayName?: string): { text: string; fullId: string } {
   return useMemo(() => {
-    const text = displayName || itemId;
-    const parts = text.split(':');
-    const name = parts[1] || parts[0];
-    const firstWord = name.split(/[_\s]+/)[0];
-    return firstWord.charAt(0).toUpperCase();
+    const fullId = displayName || itemId;
+    
+    // 如果是 tag: 前缀，显示标签名
+    if (itemId.startsWith('tag:')) {
+      const tagName = itemId.slice(4).split(':').pop() || '?';
+      return { text: `#${tagName.substring(0, 3)}`, fullId };
+    }
+    
+    // 获取物品名（去掉命名空间）
+    const parts = fullId.split(':');
+    const name = parts[1] || parts[0] || '?';
+    
+    // 取前3个字符
+    const shortName = name.substring(0, 3).toUpperCase();
+    
+    return { text: shortName, fullId };
   }, [itemId, displayName]);
 }
-
-/**
- * 紫黑格子缺失纹理 SVG
- */
-const MISSING_TEXTURE_SVG = `data:image/svg+xml;base64,${btoa(`
-<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <pattern id="m" width="16" height="16" patternUnits="userSpaceOnUse">
-      <rect width="8" height="8" fill="#1a0a2e"/>
-      <rect x="8" width="8" height="8" fill="#0d0221"/>
-      <rect y="8" width="8" height="8" fill="#0d0221"/>
-      <rect x="8" y="8" width="8" height="8" fill="#1a0a2e"/>
-    </pattern>
-  </defs>
-  <rect width="64" height="64" fill="url(#m)"/>
-</svg>
-`)}`;
 
 export default function ItemIcon({
   itemId,
@@ -79,52 +75,79 @@ export default function ItemIcon({
   size = 32,
   className = '',
   enableCache = true,
+  showDebug = false,
 }: ItemIconProps): React.ReactElement {
   const { data, loading, error } = useTexture(itemId, { enableCache });
   const color = useStableColor(itemId);
-  const initial = useInitial(itemId, displayName);
+  const { text, fullId } = useDisplayText(itemId, displayName);
 
   const containerStyle: React.CSSProperties = {
     width: size,
     height: size,
+    backgroundColor: error || !data ? `${color}20` : undefined,
+    borderRadius: 4,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   };
 
-  // 加载状态 - 显示骨架屏
+  // 加载状态
   if (loading) {
     return (
       <div
         className={`${styles.container} ${styles.loading} ${className}`}
         style={containerStyle}
-        title={itemId}
+        title={fullId}
       >
-        <div className={styles.skeleton} />
+        <div 
+          className={styles.skeleton}
+          style={{ width: size * 0.7, height: size * 0.7 }}
+        />
       </div>
     );
   }
 
-  // 错误状态 - 显示紫黑格子 + 字母
+  // 错误/缺失状态 - 显示彩色背景 + 文字
   if (error || !data) {
+    const fontSize = Math.min(size * 0.35, 10);
+    
     return (
       <div
         className={`${styles.container} ${styles.fallback} ${className}`}
-        style={containerStyle}
-        title={itemId}
+        style={{
+          ...containerStyle,
+          backgroundColor: `${color}30`,
+          border: `1px solid ${color}50`,
+        }}
+        title={fullId}
       >
-        <img
-          src={MISSING_TEXTURE_SVG}
-          alt=""
-          className={styles.missingTexture}
-          style={{ width: size, height: size }}
-        />
         <span
-          className={styles.initial}
           style={{
-            fontSize: size * 0.5,
-            textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+            fontSize,
+            fontWeight: 600,
+            color: color,
+            lineHeight: 1,
+            textAlign: 'center',
+            wordBreak: 'break-all',
+            padding: 2,
           }}
         >
-          {initial}
+          {text}
         </span>
+        {showDebug && (
+          <span
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 2,
+              fontSize: 6,
+              color: color,
+              opacity: 0.7,
+            }}
+          >
+            ?
+          </span>
+        )}
       </div>
     );
   }
@@ -134,11 +157,11 @@ export default function ItemIcon({
     <div
       className={`${styles.container} ${className}`}
       style={containerStyle}
-      title={itemId}
+      title={fullId}
     >
       <img
         src={data}
-        alt={displayName || itemId}
+        alt={fullId}
         className={styles.texture}
         style={{
           width: size,

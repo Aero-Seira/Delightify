@@ -18,7 +18,8 @@ export type ProjectDbClient = Client;
 // 连接缓存
 const connectionCache = new Map<string, Client>();
 const connectionTimestamps = new Map<string, number>();
-const CACHE_MAX_AGE = 30000; // 30秒后重新创建连接
+const CACHE_MAX_AGE = 5 * 60 * 1000; // 5分钟后过期
+const CACHE_REFRESH_INTERVAL = 60 * 1000; // 1分钟刷新使用时间
 
 function ensureDbDirectory(dbPath: string): void {
   const dir = path.dirname(dbPath);
@@ -34,19 +35,20 @@ export function createProjectDbClient(dbPath: string): ProjectDbClient {
   
   // 如果缓存有效且未过期，直接返回
   if (cached && timestamp && (now - timestamp) < CACHE_MAX_AGE) {
-    console.log('[DB] Using cached connection:', dbPath);
-    connectionTimestamps.set(dbPath, now);
+    // 每隔一段时间更新一次时间戳，防止连接一直不关闭
+    if (now - timestamp > CACHE_REFRESH_INTERVAL) {
+      connectionTimestamps.set(dbPath, now);
+    }
     return cached;
   }
   
   // 关闭旧连接（如果有）
   if (cached) {
-    console.log('[DB] Closing expired connection:', dbPath);
     try { cached.close(); } catch {}
     connectionCache.delete(dbPath);
   }
   
-  console.log('[DB] Creating new connection:', dbPath);
+  // 创建新连接
   
   ensureDbDirectory(dbPath);
   
@@ -80,7 +82,7 @@ export async function closeProjectDbClient(dbPath: string, immediate = false): P
     // 立即关闭
     const cached = connectionCache.get(dbPath);
     if (cached) {
-      console.log('[DB] Closing connection immediately:', dbPath);
+    
       try { await cached.close(); } catch {}
       connectionCache.delete(dbPath);
       connectionTimestamps.delete(dbPath);
@@ -88,7 +90,7 @@ export async function closeProjectDbClient(dbPath: string, immediate = false): P
   } else {
     // 延迟关闭，给并发请求复用的机会
     const timeout = setTimeout(() => {
-      console.log('[DB] Closing connection after delay:', dbPath);
+
       const cached = connectionCache.get(dbPath);
       if (cached) {
         try { cached.close(); } catch {}
@@ -114,9 +116,9 @@ export async function closeAllConnections(): Promise<void> {
   for (const [dbPath, client] of connectionCache.entries()) {
     try {
       await client.close();
-      console.log('[DB] Connection closed:', dbPath);
+
     } catch (error) {
-      console.error('[DB] Error closing connection:', dbPath, error);
+
     }
   }
   

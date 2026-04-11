@@ -37,8 +37,6 @@ export function registerDebugHandlers(): void {
         });
       }
       
-      await db.close();
-      
       return { success: true, data: tables };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '获取失败';
@@ -68,8 +66,6 @@ export function registerDebugHandlers(): void {
         args: (args || []) as string[],
       });
       
-      await db.close();
-      
       return { success: true, data: result.rows };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '查询失败';
@@ -92,8 +88,6 @@ export function registerDebugHandlers(): void {
       for (const table of tablesToClear) {
         await db.execute(`DELETE FROM ${table}`);
       }
-      
-      await db.close();
       
       return { success: true, data: { cleared: true } };
     } catch (error) {

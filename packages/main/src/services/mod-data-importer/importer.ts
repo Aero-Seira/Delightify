@@ -76,15 +76,25 @@ export async function importModData(options: ModDataImportOptions): Promise<Impo
 
     const sourceClient = createClient({ url: `file:${dataFilePath}` });
     
-    // 读取所有数据
-    const manifestData = await readManifest(sourceClient);
-    const modsData = await readMods(sourceClient);
-    const itemsData = await readItems(sourceClient);
-    const tagsData = await readItemTags(sourceClient);
-    const recipesData = await readRecipes(sourceClient);
-    const resourcesData = await readItemResources(sourceClient);
-
-    await sourceClient.close();
+    let manifestData: ManifestEntry[] = [];
+    let modsData: ModEntry[] = [];
+    let itemsData: ItemEntry[] = [];
+    let tagsData: ItemTagEntry[] = [];
+    let recipesData: RecipeEntry[] = [];
+    let resourcesData: any[] = [];
+    
+    try {
+      // 读取所有数据
+      manifestData = await readManifest(sourceClient);
+      modsData = await readMods(sourceClient);
+      itemsData = await readItems(sourceClient);
+      tagsData = await readItemTags(sourceClient);
+      recipesData = await readRecipes(sourceClient);
+      resourcesData = await readItemResources(sourceClient);
+    } finally {
+      // 确保源连接被关闭
+      try { await sourceClient.close(); } catch {}
+    }
 
     const stats = {
       modCount: modsData.length,
@@ -200,8 +210,6 @@ export async function importModData(options: ModDataImportOptions): Promise<Impo
         importedAt: now,
       });
 
-      await targetClient.close();
-
       onProgress?.({
         phase: 'completed',
         percent: 100,
@@ -213,9 +221,9 @@ export async function importModData(options: ModDataImportOptions): Promise<Impo
         importId,
         stats,
       };
-    } catch (error) {
-      await targetClient.close();
-      throw error;
+    } finally {
+      // 确保目标连接被关闭
+      try { await targetClient.close(); } catch {}
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '导入数据失败';

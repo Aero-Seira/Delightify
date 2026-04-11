@@ -20,6 +20,8 @@ export const DATA_FILE_PATHS = [
  * @returns 验证结果
  */
 export async function validateModDataFile(filePath: string): Promise<ValidationResult> {
+  let client: ReturnType<typeof createClient> | null = null;
+  
   try {
     const fs = await import('fs/promises');
     try {
@@ -29,7 +31,7 @@ export async function validateModDataFile(filePath: string): Promise<ValidationR
     }
 
     // 尝试连接数据库
-    const client = createClient({
+    client = createClient({
       url: `file:${filePath}`,
     });
 
@@ -41,7 +43,6 @@ export async function validateModDataFile(filePath: string): Promise<ValidationR
         args: [table],
       });
       if (result.rows.length === 0) {
-        await client.close();
         return { valid: false, error: `数据文件缺少必需的表: ${table}` };
       }
     }
@@ -84,8 +85,6 @@ export async function validateModDataFile(filePath: string): Promise<ValidationR
       client.execute('SELECT COUNT(*) as count FROM item_tags'),
     ]);
 
-    await client.close();
-
     return {
       valid: true,
       version: '1.0',
@@ -102,6 +101,11 @@ export async function validateModDataFile(filePath: string): Promise<ValidationR
       valid: false,
       error: error instanceof Error ? error.message : '验证数据文件失败',
     };
+  } finally {
+    // 确保连接被关闭
+    if (client) {
+      try { await client.close(); } catch {}
+    }
   }
 }
 
@@ -111,6 +115,8 @@ export async function validateModDataFile(filePath: string): Promise<ValidationR
  * @returns 是否有效
  */
 export async function quickValidate(filePath: string): Promise<boolean> {
+  let client: ReturnType<typeof createClient> | null = null;
+  
   try {
     const fs = await import('fs/promises');
     const stats = await fs.stat(filePath);
@@ -119,7 +125,7 @@ export async function quickValidate(filePath: string): Promise<boolean> {
       return false;
     }
 
-    const client = createClient({
+    client = createClient({
       url: `file:${filePath}`,
     });
 
@@ -127,9 +133,13 @@ export async function quickValidate(filePath: string): Promise<boolean> {
       "SELECT name FROM sqlite_master WHERE type='table' AND name='manifest'"
     );
     
-    await client.close();
     return result.rows.length > 0;
   } catch {
     return false;
+  } finally {
+    // 确保连接被关闭
+    if (client) {
+      try { await client.close(); } catch {}
+    }
   }
 }

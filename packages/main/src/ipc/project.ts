@@ -117,8 +117,6 @@ async function getProjectStats(projectPath: string): Promise<ProjectStats | null
       db.execute('SELECT imported_at FROM data_imports WHERE is_success = 1 ORDER BY imported_at DESC LIMIT 1').catch(() => ({ rows: [] })),
     ]);
     
-    await db.close();
-    
     const lastImportedAt = importResult.rows[0]?.imported_at as string | undefined;
     
     // 判断是否需要重新导入（超过7天或没有导入记录）
@@ -296,7 +294,7 @@ export function registerProjectHandlers(): void {
       // 初始化项目数据库
       const dbPath = appPaths.projectDb(projectPath);
       const db = createProjectDbClient(dbPath);
-      await db.close();
+      // 注意：不要关闭连接，让连接缓存机制管理
       console.log(`[Project] Database initialized: ${dbPath}`);
 
       // 尝试自动探测模组加载器版本
