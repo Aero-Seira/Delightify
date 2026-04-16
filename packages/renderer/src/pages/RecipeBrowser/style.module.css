@@ -495,175 +495,173 @@
 
 /* ========== 暗色主题适配 ========== */
 
-@media (prefers-color-scheme: dark) {
-  .container {
-    background: #1a1a1a;
-  }
+[data-theme='dark'] .container {
+  background: #1a1a1a;
+}
 
-  .toolbar {
-    background: #2d2d2d;
-  }
+[data-theme='dark'] .toolbar {
+  background: #2d2d2d;
+}
 
-  .searchBar {
-    background: #3d3d3d;
-    border-color: #4d4d4d;
-  }
+[data-theme='dark'] .searchBar {
+  background: #3d3d3d;
+  border-color: #4d4d4d;
+}
 
-  .searchBar:hover {
-    border-color: #5d5d5d;
-  }
+[data-theme='dark'] .searchBar:hover {
+  border-color: #5d5d5d;
+}
 
-  .searchBar:focus-within {
-    border-color: #4dabf7;
-    box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.2);
-  }
+[data-theme='dark'] .searchBar:focus-within {
+  border-color: #4dabf7;
+  box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.2);
+}
 
-  .searchBar input {
-    color: #f8f9fa;
-  }
+[data-theme='dark'] .searchBar input {
+  color: #f8f9fa;
+}
 
-  .searchBar input::placeholder {
-    color: #868e96;
-  }
+[data-theme='dark'] .searchBar input::placeholder {
+  color: #868e96;
+}
 
-  .clearSearch {
-    background: #4d4d4d;
-    color: #868e96;
-  }
+[data-theme='dark'] .clearSearch {
+  background: #4d4d4d;
+  color: #868e96;
+}
 
-  .clearSearch:hover {
-    background: #5d5d5d;
-    color: #adb5bd;
-  }
+[data-theme='dark'] .clearSearch:hover {
+  background: #5d5d5d;
+  color: #adb5bd;
+}
 
-  .clearFiltersBtn {
-    background: #3d3d3d;
-    border-color: #4d4d4d;
-    color: #868e96;
-  }
+[data-theme='dark'] .clearFiltersBtn {
+  background: #3d3d3d;
+  border-color: #4d4d4d;
+  color: #868e96;
+}
 
-  .clearFiltersBtn:hover {
-    border-color: #fa5252;
-    color: #fa5252;
-    background: rgba(250, 82, 82, 0.1);
-  }
+[data-theme='dark'] .clearFiltersBtn:hover {
+  border-color: #fa5252;
+  color: #fa5252;
+  background: rgba(250, 82, 82, 0.1);
+}
 
-  .viewModeToggle {
-    background: #3d3d3d;
-    border-color: #4d4d4d;
-  }
+[data-theme='dark'] .viewModeToggle {
+  background: #3d3d3d;
+  border-color: #4d4d4d;
+}
 
-  .viewModeBtn:hover {
-    background: #4d4d4d;
-    color: #adb5bd;
-  }
+[data-theme='dark'] .viewModeBtn:hover {
+  background: #4d4d4d;
+  color: #adb5bd;
+}
 
-  .viewModeBtn.active {
-    background: rgba(77, 171, 247, 0.2);
-    color: #74c0fc;
-  }
+[data-theme='dark'] .viewModeBtn.active {
+  background: rgba(77, 171, 247, 0.2);
+  color: #74c0fc;
+}
 
-  .stats {
-    color: #adb5bd;
-  }
+[data-theme='dark'] .stats {
+  color: #adb5bd;
+}
 
-  .count {
-    color: #ced4da;
-  }
+[data-theme='dark'] .count {
+  color: #ced4da;
+}
 
-  .filterTag {
-    background: rgba(77, 171, 247, 0.15);
-    color: #74c0fc;
-  }
+[data-theme='dark'] .filterTag {
+  background: rgba(77, 171, 247, 0.15);
+  color: #74c0fc;
+}
 
-  .filterTag button {
-    background: rgba(77, 171, 247, 0.2);
-    color: #74c0fc;
-  }
+[data-theme='dark'] .filterTag button {
+  background: rgba(77, 171, 247, 0.2);
+  color: #74c0fc;
+}
 
-  .filterTag button:hover {
-    background: rgba(77, 171, 247, 0.3);
-  }
+[data-theme='dark'] .filterTag button:hover {
+  background: rgba(77, 171, 247, 0.3);
+}
 
-  .pagination {
-    background: #2d2d2d;
-  }
+[data-theme='dark'] .pagination {
+  background: #2d2d2d;
+}
 
-  .pageInfo {
-    color: #adb5bd;
-  }
+[data-theme='dark'] .pageInfo {
+  color: #adb5bd;
+}
 
-  .pageButtons button {
-    background: #3d3d3d;
-    border-color: #4d4d4d;
-    color: #adb5bd;
-  }
+[data-theme='dark'] .pageButtons button {
+  background: #3d3d3d;
+  border-color: #4d4d4d;
+  color: #adb5bd;
+}
 
-  .pageButtons button:hover:not(:disabled) {
-    border-color: #4dabf7;
-    color: #74c0fc;
-  }
+[data-theme='dark'] .pageButtons button:hover:not(:disabled) {
+  border-color: #4dabf7;
+  color: #74c0fc;
+}
 
-  .pageButtons button.activePage {
-    background: #4dabf7;
-    border-color: #4dabf7;
-    color: white;
-  }
+[data-theme='dark'] .pageButtons button.activePage {
+  background: #4dabf7;
+  border-color: #4dabf7;
+  color: white;
+}
 
-  .pageSizeSelect {
-    background: #3d3d3d;
-    border-color: #4d4d4d;
-    color: #adb5bd;
-  }
+[data-theme='dark'] .pageSizeSelect {
+  background: #3d3d3d;
+  border-color: #4d4d4d;
+  color: #adb5bd;
+}
 
-  .empty button {
-    background: #3d3d3d;
-    border-color: #4d4d4d;
-    color: #adb5bd;
-  }
+[data-theme='dark'] .empty button {
+  background: #3d3d3d;
+  border-color: #4d4d4d;
+  color: #adb5bd;
+}
 
-  .empty button:hover {
-    border-color: #4dabf7;
-    color: #74c0fc;
-  }
+[data-theme='dark'] .empty button:hover {
+  border-color: #4dabf7;
+  color: #74c0fc;
+}
 
-  .emptyHint {
-    color: #868e96;
-  }
+[data-theme='dark'] .emptyHint {
+  color: #868e96;
+}
 
-  .detailPanel {
-    background: #2d2d2d;
-    border-color: #3d3d3d;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  }
+[data-theme='dark'] .detailPanel {
+  background: #2d2d2d;
+  border-color: #3d3d3d;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
 
-  .detailPanelHeader {
-    background: #3d3d3d;
-    border-bottom-color: #4d4d4d;
-  }
+[data-theme='dark'] .detailPanelHeader {
+  background: #3d3d3d;
+  border-bottom-color: #4d4d4d;
+}
 
-  .detailPanelHeader h4 {
-    color: #ced4da;
-  }
+[data-theme='dark'] .detailPanelHeader h4 {
+  color: #ced4da;
+}
 
-  .closePanelBtn {
-    color: #868e96;
-  }
+[data-theme='dark'] .closePanelBtn {
+  color: #868e96;
+}
 
-  .closePanelBtn:hover {
-    background: #4d4d4d;
-    color: #adb5bd;
-  }
+[data-theme='dark'] .closePanelBtn:hover {
+  background: #4d4d4d;
+  color: #adb5bd;
+}
 
-  .content::-webkit-scrollbar-thumb,
-  .detailPanelContent::-webkit-scrollbar-thumb {
-    background: #4d4d4d;
-  }
+[data-theme='dark'] .content::-webkit-scrollbar-thumb,
+[data-theme='dark'] .detailPanelContent::-webkit-scrollbar-thumb {
+  background: #4d4d4d;
+}
 
-  .content::-webkit-scrollbar-thumb:hover,
-  .detailPanelContent::-webkit-scrollbar-thumb:hover {
-    background: #5d5d5d;
-  }
+[data-theme='dark'] .content::-webkit-scrollbar-thumb:hover,
+[data-theme='dark'] .detailPanelContent::-webkit-scrollbar-thumb:hover {
+  background: #5d5d5d;
 }
 
 /* ========== 移动端适配 ========== */
