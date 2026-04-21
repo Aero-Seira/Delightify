@@ -16,10 +16,10 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: #dbeafe;
-  border: 1px solid #3b82f6;
+  background: var(--accent-light);
+  border: 1px solid var(--accent-primary);
   border-radius: 8px;
-  color: #1e40af;
+  color: var(--accent-primary);
   margin-bottom: 20px;
 }
 
@@ -32,8 +32,8 @@
 }
 
 .section {
-  background: var(--bg-secondary, white);
-  border: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
@@ -62,7 +62,7 @@
 .pathLabel {
   min-width: 120px;
   font-size: 0.875rem;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -70,10 +70,10 @@
   flex: 1;
   font-size: 0.8125rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  background: var(--bg-tertiary, #f3f4f6);
+  background: var(--bg-tertiary);
   padding: 8px 12px;
   border-radius: 6px;
-  color: var(--text-secondary, #4b5563);
+  color: var(--text-secondary);
   word-break: break-all;
 }
 
@@ -89,9 +89,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: var(--bg-tertiary, #f9fafb);
+  background: var(--bg-tertiary);
   border-radius: 8px;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border-color);
 }
 
 .tableName {
@@ -103,8 +103,8 @@
 
 .tableCount {
   font-size: 0.8125rem;
-  color: var(--text-secondary, #6b7280);
-  background: var(--bg-primary, white);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
   padding: 4px 10px;
   border-radius: 9999px;
 }
@@ -144,23 +144,23 @@
   padding: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.875rem;
-  border: 1px solid var(--border-color, #d1d5db);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   resize: vertical;
-  background: var(--bg-primary, white);
-  color: var(--text-primary, #111827);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .queryInput:focus {
   outline: none;
-  border-color: var(--primary-color, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
 }
 
 .queryBtn {
   align-self: flex-start;
   padding: 10px 20px;
-  background: var(--primary-color, #3b82f6);
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -191,8 +191,9 @@
 }
 
 .resultPre {
-  background: var(--bg-tertiary, #1f2937);
-  color: #e5e7eb;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -204,19 +205,19 @@
 
 /* 危险区域 */
 .dangerTitle {
-  color: #dc2626 !important;
+  color: var(--error) !important;
 }
 
 .dangerZone {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
   border-radius: 8px;
   padding: 16px;
 }
 
 .clearBtn {
   padding: 12px 24px;
-  background: #dc2626;
+  background: var(--error);
   color: white;
   border: none;
   border-radius: 8px;
@@ -238,15 +239,15 @@
 .warning {
   margin: 12px 0 0;
   font-size: 0.8125rem;
-  color: #991b1b;
+  color: var(--error);
 }
 
 /* 刷新按钮 */
 .refreshBtn {
   padding: 12px 24px;
-  background: var(--bg-tertiary, #f3f4f6);
-  color: var(--text-primary, #111827);
-  border: 1px solid var(--border-color, #d1d5db);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
@@ -255,7 +256,7 @@
 }
 
 .refreshBtn:hover:not(:disabled) {
-  background: var(--bg-secondary, #e5e7eb);
+  background: var(--bg-hover);
 }
 
 .refreshBtn:disabled {
@@ -265,49 +266,49 @@
 
 /* 深色模式适配 */
 [data-theme='dark'] .container {
-  color: var(--text-primary, #f9fafb);
+  color: var(--text-primary);
 }
 
 [data-theme='dark'] .title {
-  color: var(--text-primary, #f9fafb);
+  color: var(--text-primary);
 }
 
 [data-theme='dark'] .section {
-  background: var(--bg-secondary, #1f2937);
-  border-color: var(--border-color, #374151);
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
 }
 
 [data-theme='dark'] .section h2 {
-  color: var(--text-primary, #f9fafb);
+  color: var(--text-primary);
 }
 
 [data-theme='dark'] .pathValue {
-  background: var(--bg-tertiary, #111827);
-  color: var(--text-secondary, #d1d5db);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 [data-theme='dark'] .tableCard {
-  background: var(--bg-tertiary, #374151);
-  border-color: var(--border-color, #4b5563);
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
 }
 
 [data-theme='dark'] .tableName {
-  color: var(--text-primary, #f9fafb);
+  color: var(--text-primary);
 }
 
 [data-theme='dark'] .tableCount {
-  background: var(--bg-secondary, #1f2937);
-  color: var(--text-secondary, #d1d5db);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 [data-theme='dark'] .queryInput {
-  background: var(--bg-secondary, #1f2937);
-  border-color: var(--border-color, #4b5563);
-  color: var(--text-primary, #f9fafb);
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
 [data-theme='dark'] .refreshBtn {
-  background: var(--bg-tertiary, #374151);
-  border-color: var(--border-color, #4b5563);
-  color: var(--text-primary, #f9fafb);
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }

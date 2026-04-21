@@ -40,6 +40,19 @@ interface ParseInfo {
   error?: string;
 }
 
+function getRecipeTypeMeta(typeId: string): { name: string; color: string } {
+  const name = typeId.split(':')[1]?.replace(/_/g, ' ') || typeId;
+  const color = typeId.includes('shaped')
+    ? '#4dabf7'
+    : typeId.includes('shapeless')
+      ? '#69db7c'
+      : typeId.includes('smelt') || typeId.includes('cook')
+        ? '#ff8787'
+        : '#868e96';
+
+  return { name, color };
+}
+
 /**
  * 从数据中提取物品ID
  * 处理多种格式：{ items: [...] }, { item: "..." }, "...", { tag: "..." }
@@ -210,82 +223,43 @@ export default function RecipeCard({
     }
   }, [recipe.rawJson, recipe.recipeId, recipe.typeId]);
   
-  const typeName = recipe.typeId.split(':')[1]?.replace(/_/g, ' ') || recipe.typeId;
-  const typeColor = recipe.typeId.includes('shaped') ? '#4dabf7' : 
-                    recipe.typeId.includes('shapeless') ? '#69db7c' :
-                    recipe.typeId.includes('smelt') || recipe.typeId.includes('cook') ? '#ff8787' : '#868e96';
+  const { name: typeName, color: typeColor } = useMemo(
+    () => getRecipeTypeMeta(recipe.typeId),
+    [recipe.typeId]
+  );
+  const typeBadgeStyle: React.CSSProperties = {
+    backgroundColor: `${typeColor}20`,
+    color: typeColor,
+  };
 
   return (
     <div
       className={`${styles.card} ${selected ? styles.selected : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      style={{
-        background: '#2d2d2d',
-        border: '1px solid #3d3d3d',
-        borderRadius: 12,
-        padding: 12,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        minWidth: 200,
-      }}
     >
       {/* 类型标签 */}
-      <div style={{ 
-        backgroundColor: `${typeColor}20`, 
-        color: typeColor,
-        fontSize: 12,
-        fontWeight: 500,
-        padding: '3px 10px',
-        borderRadius: 6,
-        display: 'inline-block',
-        width: 'fit-content',
-      }}>
+      <div className={styles.typeBadge} style={typeBadgeStyle}>
         {typeName}
       </div>
 
       {/* 配方内容 */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        padding: '8px 0',
-        minHeight: 80,
-      }}>
+      <div className={styles.body} style={{ minHeight: 80 }}>
         {/* 输入区域 */}
-        <div style={{
-          display: 'flex',
-          flexDirection: isShaped ? 'column' : 'row',
-          gap: 2,
-          padding: isShaped ? 4 : 0,
-          background: isShaped ? '#3d3d3d' : 'transparent',
-          borderRadius: 6,
-          minWidth: isShaped ? 80 : 'auto',
-          minHeight: isShaped ? 80 : 40,
-        }}>
+        <div className={styles.inputs}>
+          <div className={isShaped ? styles.craftingGrid : styles.shapelessGrid}>
           {isShaped ? (
             // 有序合成 - 3行3列网格
             [0, 1, 2].map(row => (
-              <div key={row} style={{ display: 'flex', gap: 2 }}>
+              <div key={row} className={styles.gridRow}>
                 {[0, 1, 2].map(col => {
                   const idx = row * 3 + col;
                   const slot = inputs[idx];
                   return (
                     <div
                       key={col}
-                      style={{
-                        width: 24,
-                        height: 24,
-                        background: slot ? '#4a4a4a' : '#2d2d2d',
-                        border: '1px solid #5d5d5d',
-                        borderRadius: 3,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                      }}
+                      className={slot ? styles.slot : styles.emptySlot}
+                      style={{ width: 24, height: 24 }}
                       title={slot?.item || slot?.tag || '空'}
                     >
                       {slot ? (
@@ -301,18 +275,13 @@ export default function RecipeCard({
             ))
           ) : (
             // 无序合成或其他
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxWidth: 100 }}>
+            <>
               {inputs.length > 0 ? (
                 inputs.slice(0, 4).map((slot, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      background: '#3d3d3d',
-                      border: '1px solid #4d4d4d',
-                      borderRadius: 4,
-                    }}
+                    className={styles.slot}
+                    style={{ width: 32, height: 32 }}
                   >
                     <ItemIcon 
                       itemId={slot.item || (slot.tag ? `tag:${slot.tag}` : '')} 
@@ -321,82 +290,45 @@ export default function RecipeCard({
                   </div>
                 ))
               ) : (
-                <span style={{ color: '#ff6b6b', fontSize: 11 }}>
+                <span className={styles.inputFallback}>
                   无输入 ({parseInfo.inputCount})
                 </span>
               )}
               {inputs.length > 4 && (
-                <span style={{ color: '#868e96', fontSize: 10 }}>
+                <span className={styles.inputMore}>
                   +{inputs.length - 4}
                 </span>
               )}
-            </div>
+            </>
           )}
+          </div>
         </div>
 
         {/* 箭头 */}
-        <span style={{ color: '#adb5bd', fontSize: 20 }}>→</span>
+        <span className={styles.arrow} style={{ fontSize: 20 }}>→</span>
 
         {/* 输出 */}
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            background: output ? '#3d3d3d' : '#2d2d2d',
-            border: '1px solid #4d4d4d',
-            borderRadius: 6,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-          }}
-        >
+        <div className={styles.outputs}>
           {output ? (
-            <>
+            <div className={`${styles.slot} ${styles.outputSlot}`}>
               <ItemIcon itemId={output.item || ''} size={46} />
-              {/* 数量指示器 */}
               {(output.count || 1) > 1 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    bottom: 2,
-                    right: 2,
-                    fontSize: 11,
-                    fontWeight: 'bold',
-                    color: '#fff',
-                    textShadow: '1px 1px 0 #000',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {output.count}
-                </span>
+                <span className={styles.slotCount}>{output.count}</span>
               )}
-            </>
+            </div>
           ) : (
-            <span style={{ color: '#868e96' }}>?</span>
+            <div className={styles.emptyOutput}>?</div>
           )}
         </div>
       </div>
 
       {/* 底部信息 */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        paddingTop: 8,
-        borderTop: '1px solid #3d3d3d',
-        fontSize: 11,
-      }}>
-        <span style={{ color: '#868e96' }}>{recipe.modid}</span>
+      <div className={styles.footer}>
+        <span className={styles.modName}>{recipe.modid}</span>
         <button
+          type="button"
           onClick={(e) => { e.stopPropagation(); setShowDebug(!showDebug); }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#4dabf7',
-            cursor: 'pointer',
-            fontSize: 10,
-            padding: '2px 6px',
-          }}
+          className={styles.debugButton}
         >
           {showDebug ? '隐藏' : '调试'}
         </button>
@@ -404,18 +336,8 @@ export default function RecipeCard({
       
       {/* 调试信息面板 */}
       {showDebug && (
-        <div style={{
-          marginTop: 8,
-          padding: 8,
-          background: '#1a1a1a',
-          borderRadius: 6,
-          fontSize: 10,
-          fontFamily: 'monospace',
-          color: '#adb5bd',
-          maxHeight: 150,
-          overflow: 'auto',
-        }}>
-          <div><b>解析诊断:</b></div>
+        <div className={styles.debugPanel}>
+          <div className={styles.debugTitle}>解析诊断:</div>
           <div>hasRawJson: {parseInfo.hasRawJson ? '✓' : '✗'}</div>
           <div>rawJsonLength: {parseInfo.rawJsonLength}</div>
           <div>type: {parseInfo.jsonType || 'N/A'}</div>
@@ -425,7 +347,7 @@ export default function RecipeCard({
           <div>hasIngredient: {parseInfo.hasIngredient ? '✓' : '✗'}</div>
           <div>inputCount: {parseInfo.inputCount}</div>
           <div>firstInput: {JSON.stringify(parseInfo.firstInput)}</div>
-          {parseInfo.error && <div style={{ color: '#ff6b6b' }}>error: {parseInfo.error}</div>}
+          {parseInfo.error && <div className={styles.debugError}>error: {parseInfo.error}</div>}
         </div>
       )}
     </div>
@@ -449,72 +371,48 @@ export function RecipeListRow({
       return { inputs: [], output: null };
     }
   }, [recipe.rawJson]);
+  const { name: typeName, color: typeColor } = useMemo(
+    () => getRecipeTypeMeta(recipe.typeId),
+    [recipe.typeId]
+  );
 
   return (
     <div
       className={`${styles.listRow} ${selected ? styles.selected : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 16px',
-        background: '#2d2d2d',
-        border: '1px solid #3d3d3d',
-        borderRadius: 8,
-        cursor: 'pointer',
-      }}
     >
-      <span style={{ 
-        backgroundColor: '#3d3d3d',
-        color: '#adb5bd',
-        fontSize: 11,
-        padding: '2px 8px',
-        borderRadius: 4,
-        minWidth: 80,
-        textAlign: 'center',
-      }}>
-        {recipe.typeId.split(':')[1] || 'unknown'}
+      <span
+        className={styles.listTypeBadge}
+        style={{ backgroundColor: `${typeColor}20`, color: typeColor }}
+      >
+        {typeName}
       </span>
       
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div className={styles.listInputs}>
         {inputs.slice(0, 3).map((slot, idx) => (
-          <div key={idx} style={{ width: 24, height: 24 }}>
+          <div key={idx} className={styles.listItemSlot}>
             <ItemIcon itemId={slot.item || (slot.tag ? `tag:${slot.tag}` : '')} size={24} />
           </div>
         ))}
       </div>
 
-      <span style={{ color: '#adb5bd' }}>→</span>
+      <span className={styles.listArrow}>→</span>
 
-      <div style={{ width: 28, height: 28, position: 'relative' }}>
+      <div className={styles.listOutputSlot}>
         {output && (
           <>
             <ItemIcon itemId={output.item || ''} size={28} />
             {(output.count || 1) > 1 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  bottom: -2,
-                  right: -2,
-                  fontSize: 9,
-                  fontWeight: 'bold',
-                  color: '#fff',
-                  textShadow: '1px 1px 0 #000',
-                  pointerEvents: 'none',
-                }}
-              >
-                {output.count}
-              </span>
+              <span className={styles.slotCount}>{output.count}</span>
             )}
           </>
         )}
       </div>
 
-      <div style={{ flex: 1, marginLeft: 8 }}>
-        <div style={{ fontSize: 13, color: '#e9ecef' }}>{recipe.recipeId}</div>
-        <div style={{ fontSize: 11, color: '#868e96' }}>{recipe.modid}</div>
+      <div className={styles.listInfo}>
+        <div className={styles.listRecipeId}>{recipe.recipeId}</div>
+        <div className={styles.listMod}>{recipe.modid}</div>
       </div>
     </div>
   );
@@ -543,117 +441,84 @@ export function RecipeDetailCard({ recipe }: { recipe: Recipe }): React.ReactEle
   }, [recipe.rawJson]);
   
   const [showJson, setShowJson] = React.useState(false);
+  const { name: typeName, color: typeColor } = useMemo(
+    () => getRecipeTypeMeta(recipe.typeId),
+    [recipe.typeId]
+  );
 
   return (
-    <div style={{
-      background: '#2d2d2d',
-      border: '1px solid #3d3d3d',
-      borderRadius: 12,
-      padding: 16,
-      margin: '8px 0',
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-        paddingBottom: 12,
-        borderBottom: '1px solid #3d3d3d',
-      }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#e9ecef' }}>
-          {recipe.typeId}
+    <div className={styles.detailCard}>
+      <div className={styles.detailHeader}>
+        <span
+          className={styles.detailTypeBadge}
+          style={{ backgroundColor: `${typeColor}20`, color: typeColor }}
+        >
+          {typeName}
         </span>
-        <span style={{ fontSize: 13, color: '#868e96' }}>{recipe.modid}</span>
+        <span className={styles.detailMod}>{recipe.modid}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
-        <div>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: 14, color: '#adb5bd' }}>
-            输入 ({inputs.length})
-          </h4>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {inputs.map((slot, idx) => (
-              <div key={idx} style={{ textAlign: 'center' }}>
-                <div style={{ width: 48, height: 48 }}>
-                  <ItemIcon itemId={slot.item || (slot.tag ? `tag:${slot.tag}` : '')} size={48} />
-                </div>
-                <div style={{ fontSize: 10, color: '#868e96', marginTop: 4 }}>
-                  {(slot.item || slot.tag || '?').split(':').pop()?.substring(0, 10)}
-                </div>
+      <div className={styles.detailBody}>
+        <div className={styles.detailSection}>
+          <h4>输入 ({inputs.length})</h4>
+          <div className={styles.detailInputs}>
+            {inputs.length > 0 ? (
+              <div className={styles.detailItemsGrid}>
+                {inputs.map((slot, idx) => (
+                  <div key={idx} className={styles.detailItem}>
+                    <div className={styles.detailItemIcon}>
+                      <ItemIcon itemId={slot.item || (slot.tag ? `tag:${slot.tag}` : '')} size={48} />
+                    </div>
+                    <div className={styles.detailSlotName}>
+                      {(slot.item || slot.tag || '?').split(':').pop()?.substring(0, 10)}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <p className={styles.detailEmpty}>无输入</p>
+            )}
           </div>
         </div>
 
-        <div style={{ paddingTop: 24, color: '#adb5bd', fontSize: 24 }}>→</div>
+        <div className={styles.detailArrow}>→</div>
 
-        <div>
-          <h4 style={{ margin: '0 0 8px 0', fontSize: 14, color: '#adb5bd' }}>输出</h4>
-          {output && (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ width: 56, height: 56, position: 'relative' }}>
-                <ItemIcon itemId={output.item || ''} size={56} />
-                {(output.count || 1) > 1 && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      bottom: 2,
-                      right: 2,
-                      fontSize: 12,
-                      fontWeight: 'bold',
-                      color: '#fff',
-                      textShadow: '1px 1px 0 #000',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {output.count}
-                  </span>
-                )}
+        <div className={styles.detailSection}>
+          <h4>输出</h4>
+          <div className={styles.detailOutputs}>
+            {output ? (
+              <div className={styles.detailOutputItem}>
+                <div className={styles.detailOutputIcon}>
+                  <ItemIcon itemId={output.item || ''} size={56} />
+                  {(output.count || 1) > 1 && (
+                    <span className={styles.slotCount}>{output.count}</span>
+                  )}
+                </div>
+                <div className={styles.detailSlotName}>
+                  {output.item?.split(':').pop()}
+                  {output.count && output.count > 1 ? ` x${output.count}` : ''}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: '#868e96', marginTop: 4 }}>
-                {output.item?.split(':').pop()}
-                {output.count && output.count > 1 ? ` x${output.count}` : ''}
-              </div>
-            </div>
-          )}
+            ) : (
+              <p className={styles.detailEmpty}>无输出</p>
+            )}
+          </div>
         </div>
       </div>
 
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: 12,
-        borderTop: '1px solid #3d3d3d',
-      }}>
-        <code style={{ fontSize: 12, color: '#868e96' }}>{recipe.recipeId}</code>
+      <div className={styles.detailFooter}>
+        <code className={styles.detailRecipeId}>{recipe.recipeId}</code>
         <button 
+          type="button"
           onClick={() => setShowJson(!showJson)}
-          style={{
-            padding: '4px 12px',
-            border: '1px solid #4d4d4d',
-            background: '#3d3d3d',
-            borderRadius: 6,
-            fontSize: 12,
-            color: '#adb5bd',
-            cursor: 'pointer',
-          }}
+          className={styles.toggleJsonBtn}
         >
           {showJson ? '隐藏 JSON' : '查看 JSON'}
         </button>
       </div>
 
       {showJson && recipe.rawJson && (
-        <pre style={{
-          marginTop: 12,
-          padding: 12,
-          background: '#1a1a1a',
-          borderRadius: 8,
-          fontSize: 12,
-          color: '#adb5bd',
-          overflow: 'auto',
-          maxHeight: 300,
-        }}>{JSON.stringify(JSON.parse(recipe.rawJson), null, 2)}</pre>
+        <pre className={styles.jsonViewer}>{JSON.stringify(JSON.parse(recipe.rawJson), null, 2)}</pre>
       )}
     </div>
   );
